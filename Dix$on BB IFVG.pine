@@ -172,7 +172,12 @@ dashboardBgOpacity = input.int(15, "BG Opacity", minval=0, maxval=100, inline="D
 // Helpers
 //━━━━━━━━━━━━━━━━━━━━
 f_ma(string maType, series float src, int len) =>
-    maType == "EMA" ? ta.ema(src, len) : maType == "RMA" ? ta.rma(src, len) : maType == "WMA" ? ta.wma(src, len) : maType == "VWMA" ? ta.vwma(src, len) : ta.sma(src, len)
+    smaV = ta.sma(src, len)
+    emaV = ta.ema(src, len)
+    rmaV = ta.rma(src, len)
+    wmaV = ta.wma(src, len)
+    vwmaV = ta.vwma(src, len)
+    maType == "EMA" ? emaV : maType == "RMA" ? rmaV : maType == "WMA" ? wmaV : maType == "VWMA" ? vwmaV : smaV
 
 f_bb(series float src, int len, float mult, string maType) =>
     basis = f_ma(maType, src, len)
@@ -304,12 +309,18 @@ plot(showSessionVwap ? sessionVwap : na, "Session VWAP", color=close >= sessionV
 // Band touch state.
 chartLowerTouch = f_lowerInteraction(bbLower, bandInteractionType)
 chartUpperTouch = f_upperInteraction(bbUpper, bandInteractionType)
-htfLowerTouch = useHtfBandsForEntry and f_lowerInteraction(htfLower, bandInteractionType)
-htfUpperTouch = useHtfBandsForEntry and f_upperInteraction(htfUpper, bandInteractionType)
-chartLowerRecent = bandTouchLookback == 0 ? chartLowerTouch : ta.barssince(chartLowerTouch) <= bandTouchLookback
-chartUpperRecent = bandTouchLookback == 0 ? chartUpperTouch : ta.barssince(chartUpperTouch) <= bandTouchLookback
-htfLowerRecent = bandTouchLookback == 0 ? htfLowerTouch : ta.barssince(htfLowerTouch) <= bandTouchLookback
-htfUpperRecent = bandTouchLookback == 0 ? htfUpperTouch : ta.barssince(htfUpperTouch) <= bandTouchLookback
+htfLowerTouchRaw = f_lowerInteraction(htfLower, bandInteractionType)
+htfUpperTouchRaw = f_upperInteraction(htfUpper, bandInteractionType)
+htfLowerTouch = useHtfBandsForEntry and htfLowerTouchRaw
+htfUpperTouch = useHtfBandsForEntry and htfUpperTouchRaw
+chartLowerBarsSince = ta.barssince(chartLowerTouch)
+chartUpperBarsSince = ta.barssince(chartUpperTouch)
+htfLowerBarsSince = ta.barssince(htfLowerTouch)
+htfUpperBarsSince = ta.barssince(htfUpperTouch)
+chartLowerRecent = bandTouchLookback == 0 ? chartLowerTouch : chartLowerBarsSince <= bandTouchLookback
+chartUpperRecent = bandTouchLookback == 0 ? chartUpperTouch : chartUpperBarsSince <= bandTouchLookback
+htfLowerRecent = bandTouchLookback == 0 ? htfLowerTouch : htfLowerBarsSince <= bandTouchLookback
+htfUpperRecent = bandTouchLookback == 0 ? htfUpperTouch : htfUpperBarsSince <= bandTouchLookback
 lowerBandContextNow = bandTouchSource == "Chart Bands" ? chartLowerRecent : bandTouchSource == "HTF Bands" ? htfLowerRecent : bandTouchSource == "Chart or HTF" ? (chartLowerRecent or htfLowerRecent) : (chartLowerRecent and htfLowerRecent)
 upperBandContextNow = bandTouchSource == "Chart Bands" ? chartUpperRecent : bandTouchSource == "HTF Bands" ? htfUpperRecent : bandTouchSource == "Chart or HTF" ? (chartUpperRecent or htfUpperRecent) : (chartUpperRecent and htfUpperRecent)
 
@@ -458,8 +469,12 @@ if maxTrendlinesShown > 0
 
 resVal = f_lineValue(resistanceLine)
 supVal = f_lineValue(supportLine)
-bullBreakNow = not na(resVal) and (breakConfirmation == "Close" ? ta.crossover(close, resVal) : high > resVal and high[1] <= resVal[1])
-bearBreakNow = not na(supVal) and (breakConfirmation == "Close" ? ta.crossunder(close, supVal) : low < supVal and low[1] >= supVal[1])
+resCloseCross = ta.crossover(close, resVal)
+supCloseCross = ta.crossunder(close, supVal)
+resWickCross = high > resVal and high[1] <= resVal[1]
+supWickCross = low < supVal and low[1] >= supVal[1]
+bullBreakNow = not na(resVal) and (breakConfirmation == "Close" ? resCloseCross : resWickCross)
+bearBreakNow = not na(supVal) and (breakConfirmation == "Close" ? supCloseCross : supWickCross)
 var int lastBullTrendBreakBar = na
 var int lastBearTrendBreakBar = na
 var int lastSupportRejectBar = na
@@ -583,6 +598,10 @@ if pendingBearRetest and bar_index - pendingBearRetestBar > maxRetestBars
     pendingBearRetest := false
 longSignal = barstate.isconfirmed and latestBearActive and latestBearIfvgConfirmed and not latestBearSignalDone and ((entryMode == "IFVG Close" and bar_index == latestBearIfvgBar) or (entryMode == "First IFVG Retest" and bullRetestEntry)) and trendLongOk and sessionVwapBullOk
 shortSignal = barstate.isconfirmed and latestBullActive and latestBullIfvgConfirmed and not latestBullSignalDone and ((entryMode == "IFVG Close" and bar_index == latestBullIfvgBar) or (entryMode == "First IFVG Retest" and bearRetestEntry)) and trendShortOk and sessionVwapBearOk
+longStopBars = math.max(3, na(latestBearFvgBar) ? 3 : bar_index - (latestBearFvgBar - 2) + 1)
+shortStopBars = math.max(3, na(latestBullFvgBar) ? 3 : bar_index - (latestBullFvgBar - 2) + 1)
+longStopLowest = ta.lowest(low, longStopBars)
+shortStopHighest = ta.highest(high, shortStopBars)
 
 f_addDashTrade(int dir, float entryV, float stopV, float riskV, float beV, float tpV) =>
     array.push(dashTradeDirs, dir), array.push(dashTradeActive, true), array.push(dashTradeEntries, entryV), array.push(dashTradeStops, stopV), array.push(dashTradeBEs, beV), array.push(dashTradeTPs, tpV), array.push(dashTradeRisks, riskV), array.push(dashTradeMovedToEntry, false)
@@ -599,8 +618,7 @@ f_addVisualTrade(int dir, float entryV, float stopV, float beV, float r2V, float
 
 if longSignal
     latestBearSignalDone := true, pendingBullRetest := false, bullEntryAlert := true, statTotalSignals += 1, statLongSignals += 1
-    barsWin = math.max(3, bar_index - (latestBearFvgBar - 2) + 1)
-    entryV = close, stopV = math.min(ta.lowest(low, barsWin), entryV - syminfo.mintick), riskV = math.max(entryV - stopV, syminfo.mintick)
+    entryV = close, stopV = math.min(longStopLowest, entryV - syminfo.mintick), riskV = math.max(entryV - stopV, syminfo.mintick)
     beV = entryV + riskV, r2V = entryV + riskV * 2.0, r3V = entryV + riskV * 3.0, tpV = endTradeLevel == "1R" ? beV : endTradeLevel == "3R" ? r3V : r2V
     f_addDashTrade(1, entryV, stopV, riskV, beV, tpV)
     if showEntries
@@ -614,8 +632,7 @@ if longSignal
         f_addVisualTrade(1, entryV, stopV, beV, r2V, r3V)
 if shortSignal
     latestBullSignalDone := true, pendingBearRetest := false, bearEntryAlert := true, statTotalSignals += 1, statShortSignals += 1
-    barsWin = math.max(3, bar_index - (latestBullFvgBar - 2) + 1)
-    entryV = close, stopV = math.max(ta.highest(high, barsWin), entryV + syminfo.mintick), riskV = math.max(stopV - entryV, syminfo.mintick)
+    entryV = close, stopV = math.max(shortStopHighest, entryV + syminfo.mintick), riskV = math.max(stopV - entryV, syminfo.mintick)
     beV = entryV - riskV, r2V = entryV - riskV * 2.0, r3V = entryV - riskV * 3.0, tpV = endTradeLevel == "1R" ? beV : endTradeLevel == "3R" ? r3V : r2V
     f_addDashTrade(-1, entryV, stopV, riskV, beV, tpV)
     if showEntries
@@ -729,7 +746,8 @@ selectedBasis = bandTouchSource == "Chart Bands" ? bbBasis : htfBasis
 selectedUpper = bandTouchSource == "Chart Bands" ? bbUpper : htfUpper
 selectedLower = bandTouchSource == "Chart Bands" ? bbLower : htfLower
 selectedBandwidth = bandTouchSource == "Chart Bands" ? bbBandwidth : htfBandwidth
-bbState = close > selectedUpper ? "Upper Extreme" : close < selectedLower ? "Lower Extreme" : selectedBandwidth < nz(ta.sma(selectedBandwidth, 20)) * 0.75 ? "Squeeze" : selectedBandwidth > nz(ta.sma(selectedBandwidth, 20)) * 1.25 ? "Expansion" : close >= selectedBasis ? "Above Mid" : close < selectedBasis ? "Below Mid" : "Inside Bands"
+selectedBandwidthAvg = ta.sma(selectedBandwidth, 20)
+bbState = close > selectedUpper ? "Upper Extreme" : close < selectedLower ? "Lower Extreme" : selectedBandwidth < nz(selectedBandwidthAvg) * 0.75 ? "Squeeze" : selectedBandwidth > nz(selectedBandwidthAvg) * 1.25 ? "Expansion" : close >= selectedBasis ? "Above Mid" : close < selectedBasis ? "Below Mid" : "Inside Bands"
 lastTouchTxt = na(lastLowerBandTouchBar) and na(lastUpperBandTouchBar) ? "None" : nz(lastLowerBandTouchBar, -1) >= nz(lastUpperBandTouchBar, -1) ? "Lower / " + lastLowerBandTouchSourceText : "Upper / " + lastUpperBandTouchSourceText
 activeFvgTxt = latestBullActive and latestBearActive ? "Bull + Bear" : latestBullActive ? "Bull" : latestBearActive ? "Bear" : "None"
 activeIfvgTxt = latestBearIfvgConfirmed and latestBullIfvgConfirmed ? "Bull + Bear" : latestBearIfvgConfirmed ? "Bull" : latestBullIfvgConfirmed ? "Bear" : "None"

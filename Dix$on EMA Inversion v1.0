@@ -1,0 +1,1036 @@
+//@version=6
+indicator("Dix$on EMA Inversion", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+
+//━━━━━━━━━━━━━━━━━━━━
+// Input Groups
+//━━━━━━━━━━━━━━━━━━━━
+string GROUP_MASTER = "• Master ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_SHORT_MA = "• Short MA Settings ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_LONG_MA = "• Long MA Settings ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_FVG = "• FVG Core Settings ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_IFVG = "• IFVG & Entry Logic ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_SESSION_VWAP = "• Session VWAP Filter ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_ENTRY = "• Entry Visuals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_DISPLAY = "• Display Caps & Visibility ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_TRADE = "• Trade Levels ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_DASHBOARD = "• Dashboard ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_ALERTS = "• Alerts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+//━━━━━━━━━━━━━━━━━━━━
+// Master
+//━━━━━━━━━━━━━━━━━━━━
+showEma = input.bool(true, "Show MAs", inline="MASTER_1", group=GROUP_MASTER, tooltip="Master visibility toggles for MA lines/fill, entry labels, and cross labels.", display=display.none)
+showEmaFill = input.bool(true, "Show MA Fill", inline="MASTER_1", group=GROUP_MASTER, display=display.none)
+showEntries = input.bool(true, "Show Entries", inline="MASTER_1", group=GROUP_MASTER, display=display.none)
+showEmaCrossLabels = input.bool(true, "Show Cross Labels", inline="MASTER_2", group=GROUP_MASTER, tooltip="Cross-label and alert controls for MA flips.", display=display.none)
+enableAlerts = input.bool(true, "Enable Alerts", inline="MASTER_2", group=GROUP_MASTER, display=display.none)
+fillOpacity = input.int(85, "Fill Opacity", minval=0, maxval=100, inline="MASTER_2", group=GROUP_MASTER, display=display.none)
+
+//━━━━━━━━━━━━━━━━━━━━
+// EMA Settings
+//━━━━━━━━━━━━━━━━━━━━
+shortEmaTf = input.timeframe("", "Short TF", inline="SMA_1", group=GROUP_SHORT_MA, tooltip="Short MA: timeframe, smooth mode, and length.", display=display.none)
+shortMtfSmoothMode = input.bool(false, "Short Smooth", inline="SMA_1", group=GROUP_SHORT_MA, display=display.none)
+shortEmaLength = input.int(31, "Short Len", minval=1, inline="SMA_1", group=GROUP_SHORT_MA, display=display.none)
+shortMaType = input.string("EMA", "Short Type", options=["EMA", "MA"], inline="SMA_2", group=GROUP_SHORT_MA, tooltip="Short MA: type, width, and opacity.", display=display.none)
+shortEmaWidth = input.int(1, "Short Width", minval=1, maxval=5, inline="SMA_2", group=GROUP_SHORT_MA, display=display.none)
+shortMaOpacity = input.int(0, "Short Opacity", minval=0, maxval=100, inline="SMA_2", group=GROUP_SHORT_MA, display=display.none)
+shortMaSource = input.source(close, "Short Source", inline="SMA_3", group=GROUP_SHORT_MA, tooltip="Short MA: source and bull/bear colors.", display=display.none)
+shortBullColor = input.color(color.new(color.lime, 0), "Short Bull", inline="SMA_3", group=GROUP_SHORT_MA, display=display.none)
+shortBearColor = input.color(color.new(color.red, 0), "Short Bear", inline="SMA_3", group=GROUP_SHORT_MA, display=display.none)
+
+longEmaTf = input.timeframe("", "Long TF", inline="LMA_1", group=GROUP_LONG_MA, tooltip="Long MA: timeframe, smooth mode, and length.", display=display.none)
+longMtfSmoothMode = input.bool(false, "Long Smooth", inline="LMA_1", group=GROUP_LONG_MA, display=display.none)
+longEmaLength = input.int(77, "Long Len", minval=1, inline="LMA_1", group=GROUP_LONG_MA, display=display.none)
+longMaType = input.string("EMA", "Long Type", options=["EMA", "MA"], inline="LMA_2", group=GROUP_LONG_MA, tooltip="Long MA: type, width, and opacity.", display=display.none)
+longEmaWidth = input.int(1, "Long Width", minval=1, maxval=5, inline="LMA_2", group=GROUP_LONG_MA, display=display.none)
+longMaOpacity = input.int(0, "Long Opacity", minval=0, maxval=100, inline="LMA_2", group=GROUP_LONG_MA, display=display.none)
+longMaSource = input.source(close, "Long Source", inline="LMA_3", group=GROUP_LONG_MA, tooltip="Long MA: source and bull/bear colors.", display=display.none)
+longBullColor = input.color(color.new(color.lime, 0), "Long Bull", inline="LMA_3", group=GROUP_LONG_MA, display=display.none)
+longBearColor = input.color(color.new(color.red, 0), "Long Bear", inline="LMA_3", group=GROUP_LONG_MA, display=display.none)
+
+//━━━━━━━━━━━━━━━━━━━━
+// FVG Settings
+//━━━━━━━━━━━━━━━━━━━━
+showBullFvg = input.bool(true, "Show Bull FVG", inline="FVG_1", group=GROUP_FVG, tooltip="FVG visibility toggles and base colors for bullish and bearish gaps.", display=display.none)
+showBearFvg = input.bool(true, "Show Bear FVG", inline="FVG_1", group=GROUP_FVG, display=display.none)
+bullFvgColor = input.color(color.new(color.lime, 0), "Bull Color", inline="FVG_1", group=GROUP_FVG, display=display.none)
+
+bearFvgColor = input.color(color.new(color.red, 0), "Bear Color", inline="FVG_2", group=GROUP_FVG, tooltip="FVG opacity and extension behavior for how zones are drawn forward on chart.", display=display.none)
+fvgTransparency = input.int(85, "Transparency", minval=0, maxval=100, inline="FVG_2", group=GROUP_FVG, display=display.none)
+extendFvgRight = input.bool(false, "Extend Right", inline="FVG_2", group=GROUP_FVG, display=display.none)
+
+showMidline = input.bool(true, "Show Midline", inline="FVG_3", group=GROUP_FVG, tooltip="Midline controls inside each FVG: toggle, line style, and color.", display=display.none)
+midlineStyleInput = input.string("Dotted", "Midline Style", options=["Solid", "Dashed", "Dotted"], inline="FVG_3", group=GROUP_FVG, display=display.none)
+midlineColor = input.color(color.new(color.gray, 0), "Midline Color", inline="FVG_3", group=GROUP_FVG, display=display.none)
+
+fvgSizeFilterEnabled = input.bool(false, "Size Filter", inline="FVG_4", group=GROUP_FVG, tooltip="Minimum size filter for FVG eligibility using selected measurement mode and threshold.", display=display.none)
+fvgSizeMode = input.string("Points/Dollars", "Size Mode", options=["Points/Dollars", "Ticks", "Percent", "ATR Multiple"], inline="FVG_4", group=GROUP_FVG, display=display.none)
+minFvgSize = input.float(0.0, "Min Size", minval=0.0, step=0.01, inline="FVG_4", group=GROUP_FVG, display=display.none)
+
+atrLength = input.int(14, "ATR Length", minval=1, inline="FVG_5", group=GROUP_FVG, tooltip="ATR length used by both ATR size filtering and entry marker offset calculations.", display=display.none)
+
+//━━━━━━━━━━━━━━━━━━━━
+// IFVG & Entry Logic
+//━━━━━━━━━━━━━━━━━━━━
+ifvgConfirmBarLimit = input.int(0, "IFVG Confirm Limit", minval=0, inline="LOGIC_1", group=GROUP_IFVG, tooltip="Inversion timing and EMA-touch window controls. Confirm limit 0 means unlimited bars from FVG creation.", display=display.none)
+emaTouchBarsBefore = input.int(3, "Touch Bars Before", minval=0, inline="LOGIC_1", group=GROUP_IFVG, display=display.none)
+emaTouchBarsAfter = input.int(3, "Touch Bars After", minval=0, inline="LOGIC_1", group=GROUP_IFVG, display=display.none)
+
+emaTouchType = input.string("Either", "EMA Touch Type", options=["Wick Touch", "Body Touch", "Either"], inline="LOGIC_2", group=GROUP_IFVG, tooltip="Touch type used by entry qualification: wick touch, body touch, or either.", display=display.none)
+
+//━━━━━━━━━━━━━━━━━━━━
+// Session VWAP Filter
+//━━━━━━━━━━━━━━━━━━━━
+useSessionVwapFilter = input.bool(false, "Use VWAP Filter", inline="VWAP_1", group=GROUP_SESSION_VWAP, tooltip="Optional session-anchored VWAP filter for IFVG entries. Longs require price above VWAP and shorts require price below VWAP when enabled.", display=display.none)
+showSessionVwap = input.bool(true, "Show VWAP", inline="VWAP_1", group=GROUP_SESSION_VWAP, display=display.none)
+sessionVwapSource = input.source(hlc3, "Source", inline="VWAP_2", group=GROUP_SESSION_VWAP, display=display.none)
+sessionVwapWidth = input.int(2, "Width", minval=1, maxval=5, inline="VWAP_2", group=GROUP_SESSION_VWAP, display=display.none)
+
+//━━━━━━━━━━━━━━━━━━━━
+// Entry Visuals
+//━━━━━━━━━━━━━━━━━━━━
+entryLabelSizeInput = input.string("Tiny", "Entry Label Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], inline="ENTRY_1", group=GROUP_ENTRY, tooltip="Entry label text size.", display=display.none)
+
+entryMarkerOffsetAtrMult = input.float(0.2, "Marker Offset ATR", minval=0.0, step=0.05, inline="ENTRY_2", group=GROUP_ENTRY, tooltip="Vertical entry marker offset in ATR multiples to keep labels clear from candle bodies/wicks.", display=display.none)
+
+//━━━━━━━━━━━━━━━━━━━━
+// Display
+//━━━━━━━━━━━━━━━━━━━━
+fvgDisplayCap = input.int(2, "FVG Cap", minval=0, inline="DISP_1", group=GROUP_DISPLAY, tooltip="Visual retention caps. 0 means unlimited objects for that category.", display=display.none)
+entryDisplayCap = input.int(10, "Entry Cap", minval=0, inline="DISP_1", group=GROUP_DISPLAY, display=display.none)
+
+showTradeLevels = input.bool(true, "Show Levels", inline="TRD_1", group=GROUP_TRADE, tooltip="Draw Entry/Stop/BE/1R/2R levels for each new entry signal.", display=display.none)
+showTradeHistory = input.bool(false, "Show History", inline="TRD_1", group=GROUP_TRADE, display=display.none)
+keepActiveTrades = input.bool(true, "Keep Active", inline="TRD_1", group=GROUP_TRADE, display=display.none)
+tradeLevelHistory = input.int(1, "History", minval=0, maxval=200, inline="TRD_2A", group=GROUP_TRADE, display=display.none)
+activeTradeCap = input.int(3, "Active Cap", minval=0, maxval=200, inline="TRD_2A", group=GROUP_TRADE, display=display.none)
+endTradeLevel = input.string("2R", "TP", options=["1R", "2R", "3R"], inline="TRD_2A", group=GROUP_TRADE, tooltip="Select TP that ends the trade, and use wick/body mode for hit detection.", display=display.none)
+tradeHitMode = input.string("Wick", "Mode", options=["Wick", "Body"], inline="TRD_2A", group=GROUP_TRADE, display=display.none)
+entryLineColor = input.color(color.new(color.white, 0), "Entry", inline="TRD_2", group=GROUP_TRADE, tooltip="Trade level colors for entry/stop/BE.", display=display.none)
+stopLineColor = input.color(color.new(color.red, 0), "Stop", inline="TRD_2", group=GROUP_TRADE, display=display.none)
+beLineColor = input.color(color.new(color.orange, 0), "BE", inline="TRD_2", group=GROUP_TRADE, display=display.none)
+r2LineColor = input.color(color.new(color.lime, 0), "2R", inline="TRD_3", group=GROUP_TRADE, tooltip="Reward level colors for 2R and 3R targets.", display=display.none)
+r3LineColor = input.color(color.new(color.blue, 0), "3R", inline="TRD_3", group=GROUP_TRADE, display=display.none)
+tradeLineWidth = input.int(1, "Width", minval=1, maxval=5, inline="TRD_3", group=GROUP_TRADE, display=display.none)
+tradeBullCandleColor = input.color(color.new(color.lime, 0), "Bull Candle", inline="TRD_4", group=GROUP_TRADE, tooltip="Candle color by active trade direction: bull, bear, or no active trade.", display=display.none)
+tradeBearCandleColor = input.color(color.new(color.red, 0), "Bear Candle", inline="TRD_4", group=GROUP_TRADE, display=display.none)
+tradeNeutralCandleColor = input.color(color.new(color.gray, 0), "No Trade", inline="TRD_4", group=GROUP_TRADE, display=display.none)
+showTradeCandleColors = input.bool(true, "Color Candles", inline="TRD_5", group=GROUP_TRADE, tooltip="Enable or disable trade-direction candle coloring.", display=display.none)
+
+//━━━━━━━━━━━━━━━━━━━━
+// Dashboard
+//━━━━━━━━━━━━━━━━━━━━
+showLiveDashboard = input.bool(true, "Show Live Panel", inline="DASH_1", group=GROUP_DASHBOARD, display=display.none)
+liveDashboardPositionInput = input.string("Bottom Right", "Live Position", options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"], inline="DASH_1", group=GROUP_DASHBOARD, display=display.none)
+showPerformanceDashboard = input.bool(false, "Show Performance Panel", inline="DASH_2", group=GROUP_DASHBOARD, display=display.none)
+performanceDashboardPositionInput = input.string("Top Right", "Performance Position", options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"], inline="DASH_2", group=GROUP_DASHBOARD, display=display.none)
+dashboardTextSizeInput = input.string("Tiny", "Text Size", options=["Tiny", "Small", "Normal"], inline="DASH_3", group=GROUP_DASHBOARD, display=display.none)
+dashboardBgOpacity = input.int(15, "BG Opacity", minval=0, maxval=100, inline="DASH_3", group=GROUP_DASHBOARD, display=display.none)
+
+//━━━━━━━━━━━━━━━━━━━━
+// Alerts
+//━━━━━━━━━━━━━━━━━━━━
+// Alerts are gated by the Master > Enable Alerts toggle.
+
+//━━━━━━━━━━━━━━━━━━━━
+// Helpers
+//━━━━━━━━━━━━━━━━━━━━
+f_getAvg(string maType, series float src, int len) =>
+    smaV = ta.sma(src, len)
+    emaV = ta.ema(src, len)
+    maType == "MA" ? smaV : emaV
+
+f_getConverted(string tf, series float src, int len, string maType, bool mtfMode) =>
+    avg = f_getAvg(maType, src, len)
+    tfReq = tf == "" ? timeframe.period : tf
+    [mtfAvg, mtfBarIndex] = request.security(syminfo.tickerid, tfReq, [avg, bar_index])
+    isNewHtfBar = ta.change(mtfBarIndex) != 0
+    if mtfMode
+        isNewHtfBar or barstate.islast ? mtfAvg : na
+    else
+        tf == "" ? avg : request.security(syminfo.tickerid, tf, avg)
+
+f_getConvertedDense(string tf, series float src, int len, string maType, bool mtfMode) =>
+    avg = f_getAvg(maType, src, len)
+    tf == "" ? avg : request.security(syminfo.tickerid, tf, avg, barmerge.gaps_off, barmerge.lookahead_on)
+
+
+f_midlineStyle(string style) =>
+    style == "Solid" ? line.style_solid : style == "Dashed" ? line.style_dashed : line.style_dotted
+
+f_touchEma(float emaValue, string touchType) =>
+    wickTouch = high >= emaValue and low <= emaValue
+    bodyHigh = math.max(open, close)
+    bodyLow = math.min(open, close)
+    bodyTouch = bodyHigh >= emaValue and bodyLow <= emaValue
+    touchType == "Wick Touch" ? wickTouch : touchType == "Body Touch" ? bodyTouch : (wickTouch or bodyTouch)
+
+f_sizeValue(float top, float bottom, string mode, float atrV) =>
+    absSize = math.abs(top - bottom)
+    mode == "Points/Dollars" ? absSize :
+     mode == "Ticks" ? absSize / syminfo.mintick :
+     mode == "Percent" ? (absSize / close) * 100.0 : atrV == 0.0 ? 0.0 : absSize / atrV
+
+f_labelSize(string s) =>
+    s == "Tiny" ? size.tiny : s == "Small" ? size.small : s == "Large" ? size.large : s == "Huge" ? size.huge : size.normal
+
+f_dashboardPosition(string s) =>
+    s == "Top Left" ? position.top_left :
+     s == "Bottom Right" ? position.bottom_right :
+     s == "Bottom Left" ? position.bottom_left :
+     position.top_right
+
+f_dashboardTextSize(string s) =>
+    s == "Small" ? size.small :
+     s == "Normal" ? size.normal :
+     size.tiny
+
+f_fmtPrice(float v) =>
+    na(v) ? "—" : str.tostring(v, format.mintick)
+
+f_fmtPct(float v) =>
+    na(v) ? "—" : str.tostring(v, "#.0") + "%"
+
+f_fmtR(float v) =>
+    na(v) ? "—" : (v > 0 ? "+" : "") + str.tostring(v, "#.00") + "R"
+
+f_tpRValue(string tpMode) =>
+    tpMode == "1R" ? 1.0 :
+     tpMode == "3R" ? 3.0 :
+     2.0
+
+f_dashClampTransp(int t) =>
+    math.min(100, math.max(0, t))
+
+f_dashCell(table tbl, int col, int row, string txt, color txtColor, color bgColor, string txtSize) =>
+    table.cell(tbl, col, row, txt, text_color=txtColor, bgcolor=bgColor, text_size=f_dashboardTextSize(txtSize))
+
+f_cleanupVisuals(array<box> boxesArr, array<line> linesArr, int cap) =>
+    if cap > 0
+        while array.size(boxesArr) > cap
+            b = array.shift(boxesArr)
+            box.delete(b)
+        while array.size(linesArr) > cap
+            l = array.shift(linesArr)
+            line.delete(l)
+
+f_cleanupLabels(array<label> labelsArr, int cap) =>
+    if cap > 0
+        while array.size(labelsArr) > cap
+            lb = array.shift(labelsArr)
+            label.delete(lb)
+
+f_makeTradeLevel(float y, string txt, color col, int w) =>
+    line ln = line.new(bar_index, y, bar_index, y, color=col, width=w, extend=extend.none)
+    label lb = label.new(bar_index, y, txt + " / $" + str.tostring(y, format.mintick), style=label.style_label_left, textcolor=col, color=color.new(color.black, 100), yloc=yloc.price, size=size.tiny)
+    [ln, lb]
+
+f_deleteTradeAt(int i, array<line> tradeEntryLines, array<line> tradeStopLines, array<line> tradeBeLines, array<line> tradeR2Lines, array<line> tradeR3Lines,
+     array<label> tradeEntryLabels, array<label> tradeStopLabels, array<label> tradeBeLabels, array<label> tradeR2Labels, array<label> tradeR3Labels,
+     int[] tradeDirs, bool[] tradeIsActive, float[] tradeStops, float[] tradeBEs, float[] tradeTps, float[] tradeEntries, bool[] tradeMovedToEntry) =>
+    line lnE = array.get(tradeEntryLines, i), lnS = array.get(tradeStopLines, i), lnB = array.get(tradeBeLines, i), ln2 = array.get(tradeR2Lines, i), ln3 = array.get(tradeR3Lines, i)
+    label lbE = array.get(tradeEntryLabels, i), lbS = array.get(tradeStopLabels, i), lbB = array.get(tradeBeLabels, i), lb2 = array.get(tradeR2Labels, i), lb3 = array.get(tradeR3Labels, i)
+    if not na(lnE)
+        line.delete(lnE)
+    if not na(lnS)
+        line.delete(lnS)
+    if not na(lnB)
+        line.delete(lnB)
+    if not na(ln2)
+        line.delete(ln2)
+    if not na(ln3)
+        line.delete(ln3)
+    if not na(lbE)
+        label.delete(lbE)
+    if not na(lbS)
+        label.delete(lbS)
+    if not na(lbB)
+        label.delete(lbB)
+    if not na(lb2)
+        label.delete(lb2)
+    if not na(lb3)
+        label.delete(lb3)
+    array.remove(tradeEntryLines, i), array.remove(tradeStopLines, i), array.remove(tradeBeLines, i), array.remove(tradeR2Lines, i), array.remove(tradeR3Lines, i)
+    array.remove(tradeEntryLabels, i), array.remove(tradeStopLabels, i), array.remove(tradeBeLabels, i), array.remove(tradeR2Labels, i), array.remove(tradeR3Labels, i)
+    array.remove(tradeDirs, i), array.remove(tradeIsActive, i), array.remove(tradeStops, i), array.remove(tradeBEs, i), array.remove(tradeTps, i), array.remove(tradeEntries, i), array.remove(tradeMovedToEntry, i)
+
+
+
+
+
+f_extendVisualsToBar(array<box> boxesArr, array<line> linesArr, int rightBar) =>
+    if array.size(boxesArr) > 0
+        for i = 0 to array.size(boxesArr) - 1
+            b = array.get(boxesArr, i)
+            box.set_right(b, rightBar)
+    if array.size(linesArr) > 0
+        for i = 0 to array.size(linesArr) - 1
+            l = array.get(linesArr, i)
+            line.set_x2(l, rightBar)
+
+f_labelAttachX(label lb, int fallbackBar) =>
+    not na(lb) ? label.get_x(lb) : fallbackBar
+
+f_extendEntryFvgVisualsToBar(array<box> boxesArr, array<line> linesArr, array<label> labelsArr, int rightBar) =>
+    if array.size(boxesArr) > 0
+        for i = 0 to array.size(boxesArr) - 1
+            b = array.get(boxesArr, i)
+            box.set_right(b, rightBar)
+    if array.size(labelsArr) > 0
+        for i = 0 to array.size(labelsArr) - 1
+            lb = array.get(labelsArr, i)
+            if not na(lb)
+                label.set_x(lb, rightBar)
+    if array.size(linesArr) > 0
+        for i = 0 to array.size(linesArr) - 1
+            l = array.get(linesArr, i)
+            lb = i < array.size(labelsArr) ? array.get(labelsArr, i) : na
+            line.set_x2(l, f_labelAttachX(lb, rightBar))
+
+f_createEntryFvgVisual(int leftBar, float top, float bottom, color fvgColor, int transp, bool drawMid, color midColor, string midStyle) =>
+    rightEdge = bar_index
+    newEntryBox = box.new(leftBar, top, rightEdge, bottom, border_color=color.new(fvgColor, 0), bgcolor=color.new(fvgColor, transp), extend=extend.none)
+    line newEntryMid = na
+    if drawMid
+        mid = (top + bottom) * 0.5
+        newEntryMid := line.new(leftBar, mid, rightEdge, mid, color=midColor, style=f_midlineStyle(midStyle), extend=extend.none)
+    [newEntryBox, newEntryMid]
+
+f_createCoreFvgLabel(int rightBar, float top, float bottom, string txt, color fvgColor) =>
+    label.new(rightBar, (top + bottom) * 0.5, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_right, color=color.new(color.black, 100), textcolor=color.new(fvgColor, 0), size=size.tiny)
+
+f_updateCoreFvgLabel(label lb, int rightBar, float top, float bottom, string txt, color fvgColor) =>
+    if not na(lb)
+        label.set_x(lb, rightBar)
+        label.set_y(lb, (top + bottom) * 0.5)
+        label.set_text(lb, txt)
+        label.set_style(lb, label.style_label_right)
+        label.set_textcolor(lb, color.new(fvgColor, 0))
+
+// Helper to place cross labels with Dix$on Levels styling.
+f_placeCrossLbl(float y, string txt, bool isUp, float pad) =>
+    if not na(y)
+        float adj = isUp ? pad : -pad
+        labelStyle = isUp ? label.style_label_up : label.style_label_down
+        label.new(
+             bar_index,
+             y + adj,
+             txt,
+             yloc=yloc.price,
+             color=color.new(color.black, 100),
+             textcolor=isUp ? color.new(#FFD700, 0) : color.red,
+             style=labelStyle,
+             size=size.normal)
+//━━━━━━━━━━━━━━━━━━━━
+// Core Series
+//━━━━━━━━━━━━━━━━━━━━
+atrValue = ta.atr(atrLength)
+
+longPlotSeries = f_getConverted(longEmaTf, longMaSource, longEmaLength, longMaType, longMtfSmoothMode)
+longLogicSeries = f_getConvertedDense(longEmaTf, longMaSource, longEmaLength, longMaType, longMtfSmoothMode)
+shortPlotSeries = f_getConverted(shortEmaTf, shortMaSource, shortEmaLength, shortMaType, shortMtfSmoothMode)
+shortLogicSeries = f_getConvertedDense(shortEmaTf, shortMaSource, shortEmaLength, shortMaType, shortMtfSmoothMode)
+
+logicEma = longLogicSeries
+longVisualSmooth = longMtfSmoothMode ? longPlotSeries : longLogicSeries
+shortVisualSmooth = shortMtfSmoothMode ? shortPlotSeries : shortLogicSeries
+plotEma = longVisualSmooth
+shortEmaLogic = shortLogicSeries
+shortEmaPlot = shortVisualSmooth
+
+sessionVwap = ta.vwap(sessionVwapSource)
+sessionVwapBull = not na(sessionVwap) and close > sessionVwap
+sessionVwapBear = not na(sessionVwap) and close < sessionVwap
+sessionVwapBullOk = not useSessionVwapFilter or sessionVwapBull
+sessionVwapBearOk = not useSessionVwapFilter or sessionVwapBear
+
+longEmaColorDyn = close >= logicEma ? longBullColor : longBearColor
+shortEmaColorDyn = close >= shortEmaLogic ? shortBullColor : shortBearColor
+sessionVwapColor = sessionVwapBull ? bullFvgColor : sessionVwapBear ? bearFvgColor : color.gray
+
+longPlot = plot(showEma ? plotEma : na, "Long MA", color=color.new(longEmaColorDyn, longMaOpacity), linewidth=longEmaWidth)
+shortPlot = plot(showEma ? shortEmaPlot : na, "Short MA", color=color.new(shortEmaColorDyn, shortMaOpacity), linewidth=shortEmaWidth)
+plot(showSessionVwap ? sessionVwap : na, "Session VWAP", color=sessionVwapColor, linewidth=sessionVwapWidth)
+
+// Hold-forward fill references to prevent tiny color gaps on MTF update transitions.
+longFillState = nz(plotEma, plotEma[1])
+shortFillState = nz(shortEmaPlot, shortEmaPlot[1])
+longFillRefPlot = plot(showEma ? longFillState : na, "Long Fill Ref", color=color.new(color.white, 100), display=display.none)
+shortFillRefPlot = plot(showEma ? shortFillState : na, "Short Fill Ref", color=color.new(color.white, 100), display=display.none)
+
+var bool fillBullState = false
+if shortFillState > longFillState
+    fillBullState := true
+else if shortFillState < longFillState
+    fillBullState := false
+
+fillColor = fillBullState ? color.new(longBullColor, fillOpacity) : color.new(longBearColor, fillOpacity)
+fill(longFillRefPlot, shortFillRefPlot, color=(showEma and showEmaFill) ? fillColor : na, title="EMA Spread Fill", fillgaps=true)
+
+// EMA crossover labels (Golden/Death) using displayed EMA states so HTF+MTF smoothing
+// only fires when the smoothed EMA lines themselves actually cross.
+emaFlipUp = ta.crossover(shortFillState, longFillState)
+emaFlipDn = ta.crossunder(shortFillState, longFillState)
+crossPad = math.max(ta.tr, syminfo.mintick * 8)
+if showEma and showEmaCrossLabels
+    if emaFlipUp
+        f_placeCrossLbl(shortFillState, "✝️\nGolden", true, crossPad * -1)
+    if emaFlipDn
+        f_placeCrossLbl(shortFillState, "✝️\nDeath", false, crossPad * -1)
+
+//━━━━━━━━━━━━━━━━━━━━
+// State Storage
+//━━━━━━━━━━━━━━━━━━━━
+var array<box> bullBoxes = array.new<box>()
+var array<line> bullMidlines = array.new<line>()
+var array<label> bullFvgLabels = array.new<label>()
+var array<box> bearBoxes = array.new<box>()
+var array<line> bearMidlines = array.new<line>()
+var array<label> bearFvgLabels = array.new<label>()
+var array<label> bullEntries = array.new<label>()
+var array<label> bearEntries = array.new<label>()
+var array<box> bullEntryFvgBoxes = array.new<box>()
+var array<line> bullEntryFvgMidlines = array.new<line>()
+var array<label> bullEntryFvgLabels = array.new<label>()
+var array<box> bearEntryFvgBoxes = array.new<box>()
+var array<line> bearEntryFvgMidlines = array.new<line>()
+var array<label> bearEntryFvgLabels = array.new<label>()
+var array<line> tradeEntryLines = array.new<line>()
+var array<line> tradeStopLines = array.new<line>()
+var array<line> tradeBeLines = array.new<line>()
+var array<line> tradeR2Lines = array.new<line>()
+var array<line> tradeR3Lines = array.new<line>()
+var array<label> tradeEntryLabels = array.new<label>()
+var array<label> tradeStopLabels = array.new<label>()
+var array<label> tradeBeLabels = array.new<label>()
+var array<label> tradeR2Labels = array.new<label>()
+var array<label> tradeR3Labels = array.new<label>()
+var int[] tradeDirs = array.new_int()
+var bool[] tradeIsActive = array.new_bool()
+var float[] tradeStops = array.new_float()
+var float[] tradeBEs = array.new_float()
+var float[] tradeTps = array.new_float()
+var float[] tradeEntries = array.new_float()
+var bool[] tradeMovedToEntry = array.new_bool()
+
+var int[] dashTradeDirs = array.new_int()
+var bool[] dashTradeActive = array.new_bool()
+var float[] dashTradeEntries = array.new_float()
+var float[] dashTradeStops = array.new_float()
+var float[] dashTradeBEs = array.new_float()
+var float[] dashTradeTPs = array.new_float()
+var float[] dashTradeRisks = array.new_float()
+var bool[] dashTradeMovedToEntry = array.new_bool()
+
+var int statTotalSignals = 0
+var int statLongSignals = 0
+var int statShortSignals = 0
+var int statClosedTrades = 0
+var int statWins = 0
+var int statLosses = 0
+var int statBreakevens = 0
+var float statNetR = 0.0
+var float statGrossWinR = 0.0
+var float statGrossLossR = 0.0
+
+var table liveDashboard = table.new(position.bottom_right, 2, 7, bgcolor=color.new(color.black, 100), frame_color=color.new(color.gray, 70), frame_width=1, border_color=color.new(color.gray, 80), border_width=1)
+var table performanceDashboard = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black, 100), frame_color=color.new(color.gray, 70), frame_width=1, border_color=color.new(color.gray, 80), border_width=1)
+
+var int latestBullFvgBar = na
+var float latestBullTop = na
+var float latestBullBottom = na
+var bool latestBullActive = false
+var bool latestBullIfvgConfirmed = false
+var int latestBullIfvgBar = na
+var bool latestBullSignalDone = false
+var box latestBullBox = na
+var line latestBullMidline = na
+var label latestBullFvgLabel = na
+
+var int latestBearFvgBar = na
+var float latestBearTop = na
+var float latestBearBottom = na
+var bool latestBearActive = false
+var bool latestBearIfvgConfirmed = false
+var int latestBearIfvgBar = na
+var bool latestBearSignalDone = false
+var box latestBearBox = na
+var line latestBearMidline = na
+var label latestBearFvgLabel = na
+
+var bool bullIfvgConfirmedAlert = false
+var bool bearIfvgConfirmedAlert = false
+var bool bullEntryAlert = false
+var bool bearEntryAlert = false
+
+bullIfvgConfirmedAlert := false
+bearIfvgConfirmedAlert := false
+bullEntryAlert := false
+bearEntryAlert := false
+
+//━━━━━━━━━━━━━━━━━━━━
+// FVG Detection
+//━━━━━━━━━━━━━━━━━━━━
+bullFvgFound = bar_index >= 2 and high[2] < low
+bearFvgFound = bar_index >= 2 and low[2] > high
+
+if bullFvgFound
+    fvgTop = low
+    fvgBottom = high[2]
+    sizeOk = not fvgSizeFilterEnabled or f_sizeValue(fvgTop, fvgBottom, fvgSizeMode, atrValue) >= minFvgSize
+    if sizeOk
+        if latestBullActive
+            latestBullActive := false
+        latestBullFvgBar := bar_index
+        latestBullTop := fvgTop
+        latestBullBottom := fvgBottom
+        latestBullActive := true
+        latestBullIfvgConfirmed := false
+        latestBullIfvgBar := na
+        latestBullSignalDone := false
+
+        if showBullFvg
+            rightEdge = bar_index
+            newBox = box.new(bar_index - 2, fvgTop, rightEdge, fvgBottom, border_color=color.new(bullFvgColor, 0), bgcolor=color.new(bullFvgColor, fvgTransparency), extend=extend.none)
+            array.push(bullBoxes, newBox)
+            latestBullBox := newBox
+            newLabel = f_createCoreFvgLabel(rightEdge, fvgTop, fvgBottom, "FVG", bullFvgColor)
+            array.push(bullFvgLabels, newLabel)
+            latestBullFvgLabel := newLabel
+            latestBullMidline := na
+            if showMidline
+                mid = (fvgTop + fvgBottom) * 0.5
+                newLine = line.new(bar_index - 2, mid, rightEdge, mid, color=midlineColor, style=f_midlineStyle(midlineStyleInput), extend=extend.none)
+                array.push(bullMidlines, newLine)
+                latestBullMidline := newLine
+
+if bearFvgFound
+    fvgTop = low[2]
+    fvgBottom = high
+    sizeOk = not fvgSizeFilterEnabled or f_sizeValue(fvgTop, fvgBottom, fvgSizeMode, atrValue) >= minFvgSize
+    if sizeOk
+        if latestBearActive
+            latestBearActive := false
+        latestBearFvgBar := bar_index
+        latestBearTop := fvgTop
+        latestBearBottom := fvgBottom
+        latestBearActive := true
+        latestBearIfvgConfirmed := false
+        latestBearIfvgBar := na
+        latestBearSignalDone := false
+
+        if showBearFvg
+            rightEdge = bar_index
+            newBox = box.new(bar_index - 2, fvgTop, rightEdge, fvgBottom, border_color=color.new(bearFvgColor, 0), bgcolor=color.new(bearFvgColor, fvgTransparency), extend=extend.none)
+            array.push(bearBoxes, newBox)
+            latestBearBox := newBox
+            newLabel = f_createCoreFvgLabel(rightEdge, fvgTop, fvgBottom, "FVG", bearFvgColor)
+            array.push(bearFvgLabels, newLabel)
+            latestBearFvgLabel := newLabel
+            latestBearMidline := na
+            if showMidline
+                mid = (fvgTop + fvgBottom) * 0.5
+                newLine = line.new(bar_index - 2, mid, rightEdge, mid, color=midlineColor, style=f_midlineStyle(midlineStyleInput), extend=extend.none)
+                array.push(bearMidlines, newLine)
+                latestBearMidline := newLine
+
+if extendFvgRight
+    f_extendVisualsToBar(bullBoxes, bullMidlines, bar_index)
+    f_extendVisualsToBar(bearBoxes, bearMidlines, bar_index)
+    f_extendEntryFvgVisualsToBar(bullEntryFvgBoxes, bullEntryFvgMidlines, bullEntryFvgLabels, bar_index)
+    f_extendEntryFvgVisualsToBar(bearEntryFvgBoxes, bearEntryFvgMidlines, bearEntryFvgLabels, bar_index)
+
+f_cleanupVisuals(bullBoxes, bullMidlines, fvgDisplayCap)
+f_cleanupVisuals(bearBoxes, bearMidlines, fvgDisplayCap)
+f_cleanupLabels(bullFvgLabels, fvgDisplayCap)
+f_cleanupLabels(bearFvgLabels, fvgDisplayCap)
+
+// Always keep the currently active entry-candidate FVG extending ten bars past the
+// current bar, independent of the global extend toggle, until it inverts or is
+// invalidated/replaced.
+if latestBullActive and not latestBullIfvgConfirmed
+    rightEdge = bar_index + 10
+    if not na(latestBullBox)
+        box.set_right(latestBullBox, rightEdge)
+    f_updateCoreFvgLabel(latestBullFvgLabel, rightEdge, latestBullTop, latestBullBottom, "FVG", bullFvgColor)
+    if not na(latestBullMidline)
+        line.set_x2(latestBullMidline, f_labelAttachX(latestBullFvgLabel, rightEdge))
+
+if latestBearActive and not latestBearIfvgConfirmed
+    rightEdge = bar_index + 10
+    if not na(latestBearBox)
+        box.set_right(latestBearBox, rightEdge)
+    f_updateCoreFvgLabel(latestBearFvgLabel, rightEdge, latestBearTop, latestBearBottom, "FVG", bearFvgColor)
+    if not na(latestBearMidline)
+        line.set_x2(latestBearMidline, f_labelAttachX(latestBearFvgLabel, rightEdge))
+
+//━━━━━━━━━━━━━━━━━━━━
+// IFVG Confirmation
+//━━━━━━━━━━━━━━━━━━━━
+if latestBullActive and not latestBullIfvgConfirmed
+    barsFromCreate = bar_index - latestBullFvgBar
+    withinLimit = ifvgConfirmBarLimit == 0 or barsFromCreate <= ifvgConfirmBarLimit
+    if withinLimit
+        if close < latestBullBottom
+            latestBullIfvgConfirmed := true
+            latestBullIfvgBar := bar_index
+            bearIfvgConfirmedAlert := true
+            rightEdge = bar_index + 10
+            if not na(latestBullBox)
+                box.set_right(latestBullBox, rightEdge)
+                box.set_bgcolor(latestBullBox, color.new(bearFvgColor, fvgTransparency))
+                box.set_border_color(latestBullBox, color.new(bearFvgColor, 0))
+            f_updateCoreFvgLabel(latestBullFvgLabel, rightEdge, latestBullTop, latestBullBottom, "IFVG", bearFvgColor)
+            if not na(latestBullMidline)
+                line.set_x2(latestBullMidline, f_labelAttachX(latestBullFvgLabel, rightEdge))
+    else
+        latestBullActive := false
+
+if latestBearActive and not latestBearIfvgConfirmed
+    barsFromCreate = bar_index - latestBearFvgBar
+    withinLimit = ifvgConfirmBarLimit == 0 or barsFromCreate <= ifvgConfirmBarLimit
+    if withinLimit
+        if close > latestBearTop
+            latestBearIfvgConfirmed := true
+            latestBearIfvgBar := bar_index
+            bullIfvgConfirmedAlert := true
+            rightEdge = bar_index + 10
+            if not na(latestBearBox)
+                box.set_right(latestBearBox, rightEdge)
+                box.set_bgcolor(latestBearBox, color.new(bullFvgColor, fvgTransparency))
+                box.set_border_color(latestBearBox, color.new(bullFvgColor, 0))
+            f_updateCoreFvgLabel(latestBearFvgLabel, rightEdge, latestBearTop, latestBearBottom, "IFVG", bullFvgColor)
+            if not na(latestBearMidline)
+                line.set_x2(latestBearMidline, f_labelAttachX(latestBearFvgLabel, rightEdge))
+    else
+        latestBearActive := false
+
+//━━━━━━━━━━━━━━━━━━━━
+// Entry Logic
+//━━━━━━━━━━━━━━━━━━━━
+emaTouched = f_touchEma(logicEma, emaTouchType)
+barsSinceEmaTouch = ta.barssince(emaTouched)
+lastEmaTouchBar = barsSinceEmaTouch >= 0 ? bar_index - barsSinceEmaTouch : na
+labelSz = f_labelSize(entryLabelSizeInput)
+entryOffset = math.max(syminfo.mintick * 10.0, atrValue * entryMarkerOffsetAtrMult)
+int bullConfirmBars = math.max(3, (na(latestBearIfvgBar) or na(latestBearFvgBar)) ? 3 : latestBearIfvgBar - (latestBearFvgBar - 2) + 1)
+int bearConfirmBars = math.max(3, (na(latestBullIfvgBar) or na(latestBullFvgBar)) ? 3 : latestBullIfvgBar - (latestBullFvgBar - 2) + 1)
+float bullConfirmSwingLow = ta.lowest(low, bullConfirmBars)
+float bearConfirmSwingHigh = ta.highest(high, bearConfirmBars)
+
+if latestBearActive and latestBearIfvgConfirmed and not latestBearSignalDone and bar_index == latestBearIfvgBar
+    touchWindowStart = latestBearFvgBar - emaTouchBarsBefore
+    touchWindowOk = not na(lastEmaTouchBar) and lastEmaTouchBar >= touchWindowStart and lastEmaTouchBar <= latestBearIfvgBar
+    confirmBullClose = close > logicEma
+    trendBullOk = shortEmaLogic > logicEma
+    if touchWindowOk and confirmBullClose and trendBullOk and sessionVwapBullOk
+        latestBearSignalDone := true
+        bullEntryAlert := true
+        statTotalSignals += 1
+        statLongSignals += 1
+        float dashEntry = close
+        float dashStop = math.min(bullConfirmSwingLow, dashEntry - syminfo.mintick)
+        float dashRisk = math.max(dashEntry - dashStop, syminfo.mintick)
+        float dashBE = dashEntry + dashRisk
+        float dashR2 = dashEntry + dashRisk * 2.0
+        float dashR3 = dashEntry + dashRisk * 3.0
+        float dashTP = endTradeLevel == "1R" ? dashBE : endTradeLevel == "3R" ? dashR3 : dashR2
+        array.push(dashTradeDirs, 1)
+        array.push(dashTradeActive, true)
+        array.push(dashTradeEntries, dashEntry)
+        array.push(dashTradeStops, dashStop)
+        array.push(dashTradeBEs, dashBE)
+        array.push(dashTradeTPs, dashTP)
+        array.push(dashTradeRisks, dashRisk)
+        array.push(dashTradeMovedToEntry, false)
+        if showEntries
+            lb = label.new(bar_index, low - entryOffset, "Long", style=label.style_label_up, color=color.new(bullFvgColor, 0), textcolor=color.white, size=labelSz)
+            array.push(bullEntries, lb)
+            [entryFvgBox, entryFvgMid] = f_createEntryFvgVisual(latestBearFvgBar - 2, latestBearTop, latestBearBottom, bullFvgColor, fvgTransparency, showMidline, midlineColor, midlineStyleInput)
+            array.push(bullEntryFvgBoxes, entryFvgBox)
+            entryFvgLabel = f_createCoreFvgLabel(bar_index, latestBearTop, latestBearBottom, "IFVG", bullFvgColor)
+            array.push(bullEntryFvgLabels, entryFvgLabel)
+            if not na(entryFvgMid)
+                array.push(bullEntryFvgMidlines, entryFvgMid)
+        if showTradeLevels
+            float tEntry = close
+            float tStop = math.min(bullConfirmSwingLow, tEntry - syminfo.mintick)
+            float trisk = math.max(tEntry - tStop, syminfo.mintick)
+            float tBe = tEntry + trisk
+            float tR2 = tEntry + trisk * 2.0
+            float tR3 = tEntry + trisk * 3.0
+            [lnE, lbE] = f_makeTradeLevel(tEntry, "Entry", entryLineColor, tradeLineWidth)
+            [lnS, lbS] = f_makeTradeLevel(tStop, "Stop", stopLineColor, tradeLineWidth)
+            [lnB, lbB] = f_makeTradeLevel(tBe, "BE / 1R", beLineColor, tradeLineWidth)
+            [ln2, lb2] = f_makeTradeLevel(tR2, "2R", r2LineColor, tradeLineWidth)
+            [ln3, lb3] = f_makeTradeLevel(tR3, "3R", r3LineColor, tradeLineWidth)
+            if not keepActiveTrades
+                if array.size(tradeEntryLines) > 0
+                    for j = array.size(tradeEntryLines) - 1 to 0
+                        if array.get(tradeIsActive, j)
+                            f_deleteTradeAt(j, tradeEntryLines, tradeStopLines, tradeBeLines, tradeR2Lines, tradeR3Lines, tradeEntryLabels, tradeStopLabels, tradeBeLabels, tradeR2Labels, tradeR3Labels, tradeDirs, tradeIsActive, tradeStops, tradeBEs, tradeTps, tradeEntries, tradeMovedToEntry)
+            if activeTradeCap > 0
+                int activeCount = 0
+                if array.size(tradeIsActive) > 0
+                    for j = 0 to array.size(tradeIsActive) - 1
+                        if array.get(tradeIsActive, j)
+                            activeCount += 1
+                while activeCount >= activeTradeCap and array.size(tradeIsActive) > 0
+                    int oldestActive = na
+                    if array.size(tradeIsActive) > 0
+                        for j = 0 to array.size(tradeIsActive) - 1
+                            if array.get(tradeIsActive, j)
+                                oldestActive := j
+                                break
+                    if not na(oldestActive)
+                        f_deleteTradeAt(oldestActive, tradeEntryLines, tradeStopLines, tradeBeLines, tradeR2Lines, tradeR3Lines, tradeEntryLabels, tradeStopLabels, tradeBeLabels, tradeR2Labels, tradeR3Labels, tradeDirs, tradeIsActive, tradeStops, tradeBEs, tradeTps, tradeEntries, tradeMovedToEntry)
+                        activeCount -= 1
+                    else
+                        break
+            array.push(tradeEntryLines, lnE), array.push(tradeStopLines, lnS), array.push(tradeBeLines, lnB), array.push(tradeR2Lines, ln2), array.push(tradeR3Lines, ln3)
+            array.push(tradeEntryLabels, lbE), array.push(tradeStopLabels, lbS), array.push(tradeBeLabels, lbB), array.push(tradeR2Labels, lb2), array.push(tradeR3Labels, lb3)
+            array.push(tradeDirs, 1), array.push(tradeIsActive, true), array.push(tradeStops, tStop), array.push(tradeBEs, tBe), array.push(tradeTps, endTradeLevel == "1R" ? tBe : endTradeLevel == "3R" ? tR3 : tR2), array.push(tradeEntries, tEntry), array.push(tradeMovedToEntry, false)
+
+if latestBullActive and latestBullIfvgConfirmed and not latestBullSignalDone and bar_index == latestBullIfvgBar
+    touchWindowStart = latestBullFvgBar - emaTouchBarsBefore
+    touchWindowOk = not na(lastEmaTouchBar) and lastEmaTouchBar >= touchWindowStart and lastEmaTouchBar <= latestBullIfvgBar
+    confirmBearClose = close < logicEma
+    trendBearOk = shortEmaLogic < logicEma
+    if touchWindowOk and confirmBearClose and trendBearOk and sessionVwapBearOk
+        latestBullSignalDone := true
+        bearEntryAlert := true
+        statTotalSignals += 1
+        statShortSignals += 1
+        float dashEntry = close
+        float dashStop = math.max(bearConfirmSwingHigh, dashEntry + syminfo.mintick)
+        float dashRisk = math.max(dashStop - dashEntry, syminfo.mintick)
+        float dashBE = dashEntry - dashRisk
+        float dashR2 = dashEntry - dashRisk * 2.0
+        float dashR3 = dashEntry - dashRisk * 3.0
+        float dashTP = endTradeLevel == "1R" ? dashBE : endTradeLevel == "3R" ? dashR3 : dashR2
+        array.push(dashTradeDirs, -1)
+        array.push(dashTradeActive, true)
+        array.push(dashTradeEntries, dashEntry)
+        array.push(dashTradeStops, dashStop)
+        array.push(dashTradeBEs, dashBE)
+        array.push(dashTradeTPs, dashTP)
+        array.push(dashTradeRisks, dashRisk)
+        array.push(dashTradeMovedToEntry, false)
+        if showEntries
+            lb = label.new(bar_index, high + entryOffset, "Short", style=label.style_label_down, color=color.new(bearFvgColor, 0), textcolor=color.white, size=labelSz)
+            array.push(bearEntries, lb)
+            [entryFvgBox, entryFvgMid] = f_createEntryFvgVisual(latestBullFvgBar - 2, latestBullTop, latestBullBottom, bearFvgColor, fvgTransparency, showMidline, midlineColor, midlineStyleInput)
+            array.push(bearEntryFvgBoxes, entryFvgBox)
+            entryFvgLabel = f_createCoreFvgLabel(bar_index, latestBullTop, latestBullBottom, "IFVG", bearFvgColor)
+            array.push(bearEntryFvgLabels, entryFvgLabel)
+            if not na(entryFvgMid)
+                array.push(bearEntryFvgMidlines, entryFvgMid)
+        if showTradeLevels
+            float tEntry = close
+            float tStop = math.max(bearConfirmSwingHigh, tEntry + syminfo.mintick)
+            float trisk = math.max(tStop - tEntry, syminfo.mintick)
+            float tBe = tEntry - trisk
+            float tR2 = tEntry - trisk * 2.0
+            float tR3 = tEntry - trisk * 3.0
+            [lnE, lbE] = f_makeTradeLevel(tEntry, "Entry", entryLineColor, tradeLineWidth)
+            [lnS, lbS] = f_makeTradeLevel(tStop, "Stop", stopLineColor, tradeLineWidth)
+            [lnB, lbB] = f_makeTradeLevel(tBe, "BE / 1R", beLineColor, tradeLineWidth)
+            [ln2, lb2] = f_makeTradeLevel(tR2, "2R", r2LineColor, tradeLineWidth)
+            [ln3, lb3] = f_makeTradeLevel(tR3, "3R", r3LineColor, tradeLineWidth)
+            if not keepActiveTrades
+                if array.size(tradeEntryLines) > 0
+                    for j = array.size(tradeEntryLines) - 1 to 0
+                        if array.get(tradeIsActive, j)
+                            f_deleteTradeAt(j, tradeEntryLines, tradeStopLines, tradeBeLines, tradeR2Lines, tradeR3Lines, tradeEntryLabels, tradeStopLabels, tradeBeLabels, tradeR2Labels, tradeR3Labels, tradeDirs, tradeIsActive, tradeStops, tradeBEs, tradeTps, tradeEntries, tradeMovedToEntry)
+            if activeTradeCap > 0
+                int activeCount = 0
+                if array.size(tradeIsActive) > 0
+                    for j = 0 to array.size(tradeIsActive) - 1
+                        if array.get(tradeIsActive, j)
+                            activeCount += 1
+                while activeCount >= activeTradeCap and array.size(tradeIsActive) > 0
+                    int oldestActive = na
+                    if array.size(tradeIsActive) > 0
+                        for j = 0 to array.size(tradeIsActive) - 1
+                            if array.get(tradeIsActive, j)
+                                oldestActive := j
+                                break
+                    if not na(oldestActive)
+                        f_deleteTradeAt(oldestActive, tradeEntryLines, tradeStopLines, tradeBeLines, tradeR2Lines, tradeR3Lines, tradeEntryLabels, tradeStopLabels, tradeBeLabels, tradeR2Labels, tradeR3Labels, tradeDirs, tradeIsActive, tradeStops, tradeBEs, tradeTps, tradeEntries, tradeMovedToEntry)
+                        activeCount -= 1
+                    else
+                        break
+            array.push(tradeEntryLines, lnE), array.push(tradeStopLines, lnS), array.push(tradeBeLines, lnB), array.push(tradeR2Lines, ln2), array.push(tradeR3Lines, ln3)
+            array.push(tradeEntryLabels, lbE), array.push(tradeStopLabels, lbS), array.push(tradeBeLabels, lbB), array.push(tradeR2Labels, lb2), array.push(tradeR3Labels, lb3)
+            array.push(tradeDirs, -1), array.push(tradeIsActive, true), array.push(tradeStops, tStop), array.push(tradeBEs, tBe), array.push(tradeTps, endTradeLevel == "1R" ? tBe : endTradeLevel == "3R" ? tR3 : tR2), array.push(tradeEntries, tEntry), array.push(tradeMovedToEntry, false)
+
+f_cleanupLabels(bullEntries, entryDisplayCap)
+f_cleanupLabels(bearEntries, entryDisplayCap)
+f_cleanupVisuals(bullEntryFvgBoxes, bullEntryFvgMidlines, entryDisplayCap)
+f_cleanupVisuals(bearEntryFvgBoxes, bearEntryFvgMidlines, entryDisplayCap)
+f_cleanupLabels(bullEntryFvgLabels, entryDisplayCap)
+f_cleanupLabels(bearEntryFvgLabels, entryDisplayCap)
+
+if array.size(tradeEntryLines) > 0
+    int tradeRightEdge = bar_index + 10
+    for i = 0 to array.size(tradeEntryLines) - 1
+        line lnE = array.get(tradeEntryLines, i), lnS = array.get(tradeStopLines, i), lnB = array.get(tradeBeLines, i), ln2 = array.get(tradeR2Lines, i), ln3 = array.get(tradeR3Lines, i)
+        label lbE = array.get(tradeEntryLabels, i), lbS = array.get(tradeStopLabels, i), lbB = array.get(tradeBeLabels, i), lb2 = array.get(tradeR2Labels, i), lb3 = array.get(tradeR3Labels, i)
+        bool isActiveTrade = i < array.size(tradeIsActive) and array.get(tradeIsActive, i)
+        if isActiveTrade
+            if not na(lnE)
+                line.set_x2(lnE, tradeRightEdge)
+            if not na(lnS)
+                line.set_x2(lnS, tradeRightEdge)
+            if not na(lnB)
+                line.set_x2(lnB, tradeRightEdge)
+            if not na(ln2)
+                line.set_x2(ln2, tradeRightEdge)
+            if not na(ln3)
+                line.set_x2(ln3, tradeRightEdge)
+            if not na(lbE)
+                label.set_x(lbE, tradeRightEdge)
+            if not na(lbS)
+                label.set_x(lbS, tradeRightEdge)
+            if not na(lbB)
+                label.set_x(lbB, tradeRightEdge)
+            if not na(lb2)
+                label.set_x(lb2, tradeRightEdge)
+            if not na(lb3)
+                label.set_x(lb3, tradeRightEdge)
+// trade lifecycle (TP/BE/SL)
+float hitHi = tradeHitMode == "Body" ? math.max(open, close) : high
+float hitLo = tradeHitMode == "Body" ? math.min(open, close) : low
+if array.size(tradeEntryLines) > 0
+    for i = array.size(tradeEntryLines) - 1 to 0
+        bool active = array.get(tradeIsActive, i)
+        if active
+            int dir = array.get(tradeDirs, i)
+            float stopV = array.get(tradeStops, i)
+            float beV = array.get(tradeBEs, i)
+            float tpV = array.get(tradeTps, i)
+            float entryV = array.get(tradeEntries, i)
+            bool movedToEntry = array.get(tradeMovedToEntry, i)
+            bool beHit = dir == 1 ? hitHi >= beV : hitLo <= beV
+            if not movedToEntry and beHit
+                array.set(tradeMovedToEntry, i, true)
+                array.set(tradeStops, i, entryV)
+                line slLine = array.get(tradeStopLines, i)
+                label slLabel = array.get(tradeStopLabels, i)
+                if not na(slLine)
+                    line.delete(slLine)
+                if not na(slLabel)
+                    label.delete(slLabel)
+                array.set(tradeStopLines, i, na)
+                array.set(tradeStopLabels, i, na)
+                label enLabel = array.get(tradeEntryLabels, i)
+                if not na(enLabel)
+                    label.set_text(enLabel, "Entry / SL / $" + str.tostring(entryV, format.mintick))
+                stopV := entryV
+            bool endNow = dir == 1 ? (hitHi >= tpV or hitLo <= stopV) : (hitLo <= tpV or hitHi >= stopV)
+            if endNow
+                array.set(tradeIsActive, i, false)
+                line lnE = array.get(tradeEntryLines, i), lnS = array.get(tradeStopLines, i), lnB = array.get(tradeBeLines, i), ln2 = array.get(tradeR2Lines, i), ln3 = array.get(tradeR3Lines, i)
+                label lbE = array.get(tradeEntryLabels, i), lbS = array.get(tradeStopLabels, i), lbB = array.get(tradeBeLabels, i), lb2 = array.get(tradeR2Labels, i), lb3 = array.get(tradeR3Labels, i)
+                if not na(lnE)
+                    line.set_x2(lnE, bar_index)
+                if not na(lnS)
+                    line.set_x2(lnS, bar_index)
+                if not na(lnB)
+                    line.set_x2(lnB, bar_index)
+                if not na(ln2)
+                    line.set_x2(ln2, bar_index)
+                if not na(ln3)
+                    line.set_x2(ln3, bar_index)
+                if not na(lbE)
+                    label.set_x(lbE, bar_index)
+                if not na(lbS)
+                    label.set_x(lbS, bar_index)
+                if not na(lbB)
+                    label.set_x(lbB, bar_index)
+                if not na(lb2)
+                    label.set_x(lb2, bar_index)
+                if not na(lb3)
+                    label.set_x(lb3, bar_index)
+                if not showTradeHistory
+                    f_deleteTradeAt(i, tradeEntryLines, tradeStopLines, tradeBeLines, tradeR2Lines, tradeR3Lines, tradeEntryLabels, tradeStopLabels, tradeBeLabels, tradeR2Labels, tradeR3Labels, tradeDirs, tradeIsActive, tradeStops, tradeBEs, tradeTps, tradeEntries, tradeMovedToEntry)
+if showTradeHistory and tradeLevelHistory > 0
+    int endedCount = 0
+    if array.size(tradeIsActive) > 0
+        for i = 0 to array.size(tradeIsActive) - 1
+            if not array.get(tradeIsActive, i)
+                endedCount += 1
+    while endedCount > tradeLevelHistory and array.size(tradeIsActive) > 0
+        int oldestEnded = na
+        if array.size(tradeIsActive) > 0
+            for i = 0 to array.size(tradeIsActive) - 1
+                if not array.get(tradeIsActive, i)
+                    oldestEnded := i
+                    break
+        if not na(oldestEnded)
+            f_deleteTradeAt(oldestEnded, tradeEntryLines, tradeStopLines, tradeBeLines, tradeR2Lines, tradeR3Lines, tradeEntryLabels, tradeStopLabels, tradeBeLabels, tradeR2Labels, tradeR3Labels, tradeDirs, tradeIsActive, tradeStops, tradeBEs, tradeTps, tradeEntries, tradeMovedToEntry)
+            endedCount -= 1
+        else
+            break
+
+float dashHitHi = tradeHitMode == "Body" ? math.max(open, close) : high
+float dashHitLo = tradeHitMode == "Body" ? math.min(open, close) : low
+if array.size(dashTradeDirs) > 0
+    for i = array.size(dashTradeDirs) - 1 to 0
+        bool dashActive = array.get(dashTradeActive, i)
+        if dashActive
+            int dir = array.get(dashTradeDirs, i)
+            float entryV = array.get(dashTradeEntries, i)
+            float stopV = array.get(dashTradeStops, i)
+            float beV = array.get(dashTradeBEs, i)
+            float tpV = array.get(dashTradeTPs, i)
+            float riskV = array.get(dashTradeRisks, i)
+            bool movedToEntry = array.get(dashTradeMovedToEntry, i)
+            bool beHit = dir == 1 ? dashHitHi >= beV : dashHitLo <= beV
+            if not movedToEntry and beHit
+                array.set(dashTradeMovedToEntry, i, true)
+                array.set(dashTradeStops, i, entryV)
+                stopV := entryV
+                movedToEntry := true
+            bool tpHit = dir == 1 ? dashHitHi >= tpV : dashHitLo <= tpV
+            bool stopHit = dir == 1 ? dashHitLo <= stopV : dashHitHi >= stopV
+            bool endNow = tpHit or stopHit
+            if endNow
+                array.set(dashTradeActive, i, false)
+                float realizedR = na
+                if tpHit
+                    realizedR := f_tpRValue(endTradeLevel)
+                    statWins += 1
+                    statGrossWinR += realizedR
+                else if stopHit and movedToEntry
+                    realizedR := 0.0
+                    statBreakevens += 1
+                else if stopHit
+                    realizedR := -1.0
+                    statLosses += 1
+                    statGrossLossR += 1.0
+                if not na(realizedR)
+                    statClosedTrades += 1
+                    statNetR += realizedR
+
+int dashMaBiasDir = shortEmaLogic > logicEma ? 1 : shortEmaLogic < logicEma ? -1 : 0
+int dashBiasDir = dashMaBiasDir == 1 and sessionVwapBullOk ? 1 : dashMaBiasDir == -1 and sessionVwapBearOk ? -1 : 0
+string dashBiasTxt = dashBiasDir == 1 ? "Bullish" : dashBiasDir == -1 ? "Bearish" : "Neutral"
+
+int dashActiveIndex = na
+if array.size(dashTradeActive) > 0
+    for i = array.size(dashTradeActive) - 1 to 0
+        if array.get(dashTradeActive, i)
+            dashActiveIndex := i
+            break
+
+int dashActiveDir = 0
+float dashActiveEntry = na
+float dashActiveStop = na
+float dashActiveBE = na
+float dashActiveTP = na
+float dashActiveRisk = na
+if not na(dashActiveIndex)
+    dashActiveDir := array.get(dashTradeDirs, dashActiveIndex)
+    dashActiveEntry := array.get(dashTradeEntries, dashActiveIndex)
+    dashActiveStop := array.get(dashTradeStops, dashActiveIndex)
+    dashActiveBE := array.get(dashTradeBEs, dashActiveIndex)
+    dashActiveTP := array.get(dashTradeTPs, dashActiveIndex)
+    dashActiveRisk := array.get(dashTradeRisks, dashActiveIndex)
+string dashActiveTradeTxt = dashActiveDir == 1 ? "Long" : dashActiveDir == -1 ? "Short" : "None"
+
+float dashCurrentR = na
+if dashActiveDir == 1 and not na(dashActiveEntry) and not na(dashActiveRisk) and dashActiveRisk > 0
+    dashCurrentR := (close - dashActiveEntry) / dashActiveRisk
+else if dashActiveDir == -1 and not na(dashActiveEntry) and not na(dashActiveRisk) and dashActiveRisk > 0
+    dashCurrentR := (dashActiveEntry - close) / dashActiveRisk
+
+float dashWinRate = statClosedTrades > 0 ? statWins / statClosedTrades * 100.0 : na
+float dashAvgR = statClosedTrades > 0 ? statNetR / statClosedTrades : na
+float dashProfitFactor = statGrossLossR > 0 ? statGrossWinR / statGrossLossR : na
+
+int dashBaseTransp = f_dashClampTransp(dashboardBgOpacity)
+int dashLabelTransp = f_dashClampTransp(dashboardBgOpacity + 20)
+int dashNeutralTransp = f_dashClampTransp(dashboardBgOpacity + 35)
+color dashHeaderBg = color.new(color.black, dashBaseTransp)
+color dashLabelBg = color.new(color.black, dashLabelTransp)
+color dashNeutralBg = color.new(color.gray, dashNeutralTransp)
+color dashBullBg = color.new(bullFvgColor, dashBaseTransp)
+color dashBearBg = color.new(bearFvgColor, dashBaseTransp)
+color dashBeBg = color.new(beLineColor, dashBaseTransp)
+color dashTextColor = color.white
+
+if barstate.islast
+    table.set_position(liveDashboard, f_dashboardPosition(liveDashboardPositionInput))
+    table.set_position(performanceDashboard, f_dashboardPosition(performanceDashboardPositionInput))
+
+    if not showLiveDashboard
+        table.clear(liveDashboard, 0, 0, 1, 6)
+    else
+        table.clear(liveDashboard, 0, 0, 1, 6)
+        color biasBg = dashBiasDir == 1 ? dashBullBg : dashBiasDir == -1 ? dashBearBg : dashNeutralBg
+        color activeBg = dashActiveDir == 1 ? dashBullBg : dashActiveDir == -1 ? dashBearBg : dashNeutralBg
+        color priceRowBg = dashActiveDir == 0 ? dashNeutralBg : dashLabelBg
+        color beRowBg = dashActiveDir == 0 ? dashNeutralBg : dashBeBg
+        color rBg = na(dashCurrentR) ? dashNeutralBg : dashCurrentR > 0 ? dashBullBg : dashCurrentR < 0 ? dashBearBg : dashNeutralBg
+        f_dashCell(liveDashboard, 0, 0, "Bias", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 1, 0, dashBiasTxt, dashTextColor, biasBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 0, 1, "Active Trade", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 1, 1, dashActiveTradeTxt, dashTextColor, activeBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 0, 2, "Entry", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 1, 2, f_fmtPrice(dashActiveEntry), dashTextColor, priceRowBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 0, 3, "Stop", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 1, 3, f_fmtPrice(dashActiveStop), dashTextColor, priceRowBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 0, 4, "BE / 1R", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 1, 4, f_fmtPrice(dashActiveBE), dashTextColor, beRowBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 0, 5, "TP", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 1, 5, f_fmtPrice(dashActiveTP), dashTextColor, priceRowBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 0, 6, "Current R", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(liveDashboard, 1, 6, f_fmtR(dashCurrentR), dashTextColor, rBg, dashboardTextSizeInput)
+
+    if not showPerformanceDashboard
+        table.clear(performanceDashboard, 0, 0, 1, 9)
+    else
+        table.clear(performanceDashboard, 0, 0, 1, 9)
+        color netRBg = statNetR > 0 ? dashBullBg : statNetR < 0 ? dashBearBg : dashNeutralBg
+        color avgRBg = na(dashAvgR) ? dashNeutralBg : dashAvgR > 0 ? dashBullBg : dashAvgR < 0 ? dashBearBg : dashNeutralBg
+        color pfBg = na(dashProfitFactor) ? dashNeutralBg : dashProfitFactor >= 1.0 ? dashBullBg : dashBearBg
+        string pfTxt = na(dashProfitFactor) ? "—" : str.tostring(dashProfitFactor, "#.00")
+        f_dashCell(performanceDashboard, 0, 0, "Signals", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 0, str.tostring(statTotalSignals), dashTextColor, dashNeutralBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 0, 1, "Long / Short", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 1, str.tostring(statLongSignals) + " / " + str.tostring(statShortSignals), dashTextColor, dashNeutralBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 0, 2, "Closed Trades", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 2, str.tostring(statClosedTrades), dashTextColor, dashNeutralBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 0, 3, "Wins", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 3, str.tostring(statWins), dashTextColor, dashBullBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 0, 4, "Losses", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 4, str.tostring(statLosses), dashTextColor, dashBearBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 0, 5, "BE", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 5, str.tostring(statBreakevens), dashTextColor, dashBeBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 0, 6, "Win Rate", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 6, f_fmtPct(dashWinRate), dashTextColor, dashNeutralBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 0, 7, "Net R", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 7, f_fmtR(statNetR), dashTextColor, netRBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 0, 8, "Avg R", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 8, f_fmtR(dashAvgR), dashTextColor, avgRBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 0, 9, "Profit Factor", dashTextColor, dashLabelBg, dashboardTextSizeInput)
+        f_dashCell(performanceDashboard, 1, 9, pfTxt, dashTextColor, pfBg, dashboardTextSizeInput)
+
+int activeTradeDir = 0
+if array.size(tradeDirs) > 0
+    for i = array.size(tradeDirs) - 1 to 0
+        if array.get(tradeIsActive, i)
+            activeTradeDir := array.get(tradeDirs, i)
+            break
+color tradeCandleColor = activeTradeDir == 1 ? tradeBullCandleColor : activeTradeDir == -1 ? tradeBearCandleColor : tradeNeutralCandleColor
+plotcandle(open, high, low, close, title="Trade Direction Candles", color=showTradeCandleColors ? tradeCandleColor : na, wickcolor=showTradeCandleColors ? tradeCandleColor : na, bordercolor=showTradeCandleColors ? tradeCandleColor : na)
+
+//━━━━━━━━━━━━━━━━━━━━
+// Alerts
+//━━━━━━━━━━━━━━━━━━━━
+alertcondition(enableAlerts and emaFlipUp, "Golden Cross", "Dix$on EMA Inversion: Golden cross detected.")
+alertcondition(enableAlerts and emaFlipDn, "Death Cross", "Dix$on EMA Inversion: Death cross detected.")
+alertcondition(enableAlerts and bullEntryAlert, "Bullish EMA Inversion Entry", "Bullish IFVG + EMA reclaim entry confirmed.")
+alertcondition(enableAlerts and bearEntryAlert, "Bearish EMA Inversion Entry", "Bearish IFVG + EMA rejection entry confirmed.")

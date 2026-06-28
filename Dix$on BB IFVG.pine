@@ -401,6 +401,8 @@ var bool latestBullSignalDone = false
 var bool latestBearSignalDone = false
 var bool latestBullUpperContext = false
 var bool latestBearLowerContext = false
+var bool latestBullEntryEligible = false
+var bool latestBearEntryEligible = false
 var box latestBullBox = na
 var box latestBearBox = na
 var line latestBullMidline = na
@@ -507,7 +509,7 @@ if bullFvgFound
     fvgTop = low, fvgBottom = high[2]
     sizeOk = not fvgSizeFilterEnabled or f_sizeValue(fvgTop, fvgBottom, fvgSizeMode, atrValue) >= minFvgSize
     if sizeOk
-        latestBullFvgBar := bar_index, latestBullTop := fvgTop, latestBullBottom := fvgBottom, latestBullActive := true, latestBullIfvgConfirmed := false, latestBullIfvgBar := na, latestBullSignalDone := false, latestBullUpperContext := upperFvgContext, pendingBearRetest := false
+        latestBullFvgBar := bar_index, latestBullTop := fvgTop, latestBullBottom := fvgBottom, latestBullActive := true, latestBullIfvgConfirmed := false, latestBullIfvgBar := na, latestBullSignalDone := false, latestBullUpperContext := upperFvgContext, latestBullEntryEligible := false, pendingBearRetest := false
         if showFvgs and showBullFvg
             latestBullBox := box.new(bar_index - 2, fvgTop, bar_index, fvgBottom, border_color=color.new(bullFvgColor, 0), bgcolor=color.new(bullFvgColor, fvgTransparency), extend=extend.none)
             array.push(bullBoxes, latestBullBox)
@@ -522,7 +524,7 @@ if bearFvgFound
     fvgTop = low[2], fvgBottom = high
     sizeOk = not fvgSizeFilterEnabled or f_sizeValue(fvgTop, fvgBottom, fvgSizeMode, atrValue) >= minFvgSize
     if sizeOk
-        latestBearFvgBar := bar_index, latestBearTop := fvgTop, latestBearBottom := fvgBottom, latestBearActive := true, latestBearIfvgConfirmed := false, latestBearIfvgBar := na, latestBearSignalDone := false, latestBearLowerContext := lowerFvgContext, pendingBullRetest := false
+        latestBearFvgBar := bar_index, latestBearTop := fvgTop, latestBearBottom := fvgBottom, latestBearActive := true, latestBearIfvgConfirmed := false, latestBearIfvgBar := na, latestBearSignalDone := false, latestBearLowerContext := lowerFvgContext, latestBearEntryEligible := false, pendingBullRetest := false
         if showFvgs and showBearFvg
             latestBearBox := box.new(bar_index - 2, fvgTop, bar_index, fvgBottom, border_color=color.new(bearFvgColor, 0), bgcolor=color.new(bearFvgColor, fvgTransparency), extend=extend.none)
             array.push(bearBoxes, latestBearBox)
@@ -559,9 +561,10 @@ shortConfirmContextOk = not requireBandContextAtIfvgConfirm or upperBandContextN
 if latestBearActive and not latestBearIfvgConfirmed
     barsFromCreate = bar_index - latestBearFvgBar
     if ifvgConfirmBarLimit == 0 or barsFromCreate <= ifvgConfirmBarLimit
-        if barstate.isconfirmed and close > latestBearTop and longFormationContextOk and longConfirmContextOk
+        if barstate.isconfirmed and close > latestBearTop
             latestBearIfvgConfirmed := true, latestBearIfvgBar := bar_index, bullIfvgConfirmedAlert := true
-            if entryMode == "First IFVG Retest"
+            latestBearEntryEligible := longFormationContextOk and longConfirmContextOk
+            if entryMode == "First IFVG Retest" and latestBearEntryEligible
                 pendingBullRetest := true, pendingBullRetestBar := bar_index
             if not na(latestBearBox)
                 box.set_right(latestBearBox, bar_index), box.set_bgcolor(latestBearBox, color.new(bullFvgColor, fvgTransparency)), box.set_border_color(latestBearBox, color.new(bullFvgColor, 0))
@@ -573,9 +576,10 @@ if latestBearActive and not latestBearIfvgConfirmed
 if latestBullActive and not latestBullIfvgConfirmed
     barsFromCreate = bar_index - latestBullFvgBar
     if ifvgConfirmBarLimit == 0 or barsFromCreate <= ifvgConfirmBarLimit
-        if barstate.isconfirmed and close < latestBullBottom and shortFormationContextOk and shortConfirmContextOk
+        if barstate.isconfirmed and close < latestBullBottom
             latestBullIfvgConfirmed := true, latestBullIfvgBar := bar_index, bearIfvgConfirmedAlert := true
-            if entryMode == "First IFVG Retest"
+            latestBullEntryEligible := shortFormationContextOk and shortConfirmContextOk
+            if entryMode == "First IFVG Retest" and latestBullEntryEligible
                 pendingBearRetest := true, pendingBearRetestBar := bar_index
             if not na(latestBullBox)
                 box.set_right(latestBullBox, bar_index), box.set_bgcolor(latestBullBox, color.new(bearFvgColor, fvgTransparency)), box.set_border_color(latestBullBox, color.new(bearFvgColor, 0))
@@ -596,8 +600,8 @@ if pendingBullRetest and bar_index - pendingBullRetestBar > maxRetestBars
     pendingBullRetest := false
 if pendingBearRetest and bar_index - pendingBearRetestBar > maxRetestBars
     pendingBearRetest := false
-longSignal = barstate.isconfirmed and latestBearActive and latestBearIfvgConfirmed and not latestBearSignalDone and ((entryMode == "IFVG Close" and bar_index == latestBearIfvgBar) or (entryMode == "First IFVG Retest" and bullRetestEntry)) and trendLongOk and sessionVwapBullOk
-shortSignal = barstate.isconfirmed and latestBullActive and latestBullIfvgConfirmed and not latestBullSignalDone and ((entryMode == "IFVG Close" and bar_index == latestBullIfvgBar) or (entryMode == "First IFVG Retest" and bearRetestEntry)) and trendShortOk and sessionVwapBearOk
+longSignal = barstate.isconfirmed and latestBearActive and latestBearIfvgConfirmed and latestBearEntryEligible and not latestBearSignalDone and ((entryMode == "IFVG Close" and bar_index == latestBearIfvgBar) or (entryMode == "First IFVG Retest" and bullRetestEntry)) and trendLongOk and sessionVwapBullOk
+shortSignal = barstate.isconfirmed and latestBullActive and latestBullIfvgConfirmed and latestBullEntryEligible and not latestBullSignalDone and ((entryMode == "IFVG Close" and bar_index == latestBullIfvgBar) or (entryMode == "First IFVG Retest" and bearRetestEntry)) and trendShortOk and sessionVwapBearOk
 longStopBars = math.max(3, na(latestBearFvgBar) ? 3 : bar_index - (latestBearFvgBar - 2) + 1)
 shortStopBars = math.max(3, na(latestBullFvgBar) ? 3 : bar_index - (latestBullFvgBar - 2) + 1)
 longStopLowest = ta.lowest(low, longStopBars)

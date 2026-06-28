@@ -519,16 +519,6 @@ if bearFvgFound
                 latestBearMidline := line.new(bar_index - 2, mid, bar_index, mid, color=midlineColor, style=f_midlineStyle(midlineStyleInput), extend=extend.none)
                 array.push(bearMidlines, latestBearMidline)
 
-if extendFvgRight
-    for b in bullBoxes
-        box.set_right(b, bar_index)
-    for b in bearBoxes
-        box.set_right(b, bar_index)
-    for l in bullMidlines
-        line.set_x2(l, bar_index)
-    for l in bearMidlines
-        line.set_x2(l, bar_index)
-
 f_cleanupVisuals(bullBoxes, bullMidlines, fvgDisplayCap), f_cleanupVisuals(bearBoxes, bearMidlines, fvgDisplayCap), f_cleanupLabels(bullFvgLabels, fvgDisplayCap), f_cleanupLabels(bearFvgLabels, fvgDisplayCap)
 
 if latestBullActive and not latestBullIfvgConfirmed
@@ -559,8 +549,10 @@ if latestBearActive and not latestBearIfvgConfirmed
             if entryMode == "First IFVG Retest"
                 pendingBullRetest := true, pendingBullRetestBar := bar_index
             if not na(latestBearBox)
-                box.set_bgcolor(latestBearBox, color.new(bullFvgColor, fvgTransparency)), box.set_border_color(latestBearBox, color.new(bullFvgColor, 0))
-            f_updateCoreFvgLabel(latestBearFvgLabel, bar_index + 10, latestBearTop, latestBearBottom, "IFVG", bullFvgColor)
+                box.set_right(latestBearBox, bar_index), box.set_bgcolor(latestBearBox, color.new(bullFvgColor, fvgTransparency)), box.set_border_color(latestBearBox, color.new(bullFvgColor, 0))
+            if not na(latestBearMidline)
+                line.set_x2(latestBearMidline, bar_index)
+            f_updateCoreFvgLabel(latestBearFvgLabel, bar_index, latestBearTop, latestBearBottom, "IFVG", bullFvgColor)
     else
         latestBearActive := false
 if latestBullActive and not latestBullIfvgConfirmed
@@ -571,8 +563,10 @@ if latestBullActive and not latestBullIfvgConfirmed
             if entryMode == "First IFVG Retest"
                 pendingBearRetest := true, pendingBearRetestBar := bar_index
             if not na(latestBullBox)
-                box.set_bgcolor(latestBullBox, color.new(bearFvgColor, fvgTransparency)), box.set_border_color(latestBullBox, color.new(bearFvgColor, 0))
-            f_updateCoreFvgLabel(latestBullFvgLabel, bar_index + 10, latestBullTop, latestBullBottom, "IFVG", bearFvgColor)
+                box.set_right(latestBullBox, bar_index), box.set_bgcolor(latestBullBox, color.new(bearFvgColor, fvgTransparency)), box.set_border_color(latestBullBox, color.new(bearFvgColor, 0))
+            if not na(latestBullMidline)
+                line.set_x2(latestBullMidline, bar_index)
+            f_updateCoreFvgLabel(latestBullFvgLabel, bar_index, latestBullTop, latestBullBottom, "IFVG", bearFvgColor)
     else
         latestBullActive := false
 

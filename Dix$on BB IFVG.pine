@@ -331,31 +331,92 @@ upperFvgContext = upperBandContextNow and f_contextRecent(lastUpperBandTouchBar)
 //━━━━━━━━━━━━━━━━━━━━
 // State Storage
 //━━━━━━━━━━━━━━━━━━━━
-var array<box> bullBoxes = array.new<box>(), bearBoxes = array.new<box>(), bullEntryFvgBoxes = array.new<box>(), bearEntryFvgBoxes = array.new<box>()
-var array<line> bullMidlines = array.new<line>(), bearMidlines = array.new<line>(), bullEntryFvgMidlines = array.new<line>(), bearEntryFvgMidlines = array.new<line>()
-var array<label> bullFvgLabels = array.new<label>(), bearFvgLabels = array.new<label>(), bullEntries = array.new<label>(), bearEntries = array.new<label>(), bullEntryFvgLabels = array.new<label>(), bearEntryFvgLabels = array.new<label>()
+var array<box> bullBoxes = array.new<box>()
+var array<box> bearBoxes = array.new<box>()
+var array<box> bullEntryFvgBoxes = array.new<box>()
+var array<box> bearEntryFvgBoxes = array.new<box>()
+var array<line> bullMidlines = array.new<line>()
+var array<line> bearMidlines = array.new<line>()
+var array<line> bullEntryFvgMidlines = array.new<line>()
+var array<line> bearEntryFvgMidlines = array.new<line>()
+var array<label> bullFvgLabels = array.new<label>()
+var array<label> bearFvgLabels = array.new<label>()
+var array<label> bullEntries = array.new<label>()
+var array<label> bearEntries = array.new<label>()
+var array<label> bullEntryFvgLabels = array.new<label>()
+var array<label> bearEntryFvgLabels = array.new<label>()
 var array<line> trendlines = array.new<line>()
-var array<line> tradeEntryLines = array.new<line>(), tradeStopLines = array.new<line>(), tradeBeLines = array.new<line>(), tradeR2Lines = array.new<line>(), tradeR3Lines = array.new<line>()
-var array<label> tradeEntryLabels = array.new<label>(), tradeStopLabels = array.new<label>(), tradeBeLabels = array.new<label>(), tradeR2Labels = array.new<label>(), tradeR3Labels = array.new<label>()
-var int[] tradeDirs = array.new_int(), dashTradeDirs = array.new_int()
-var bool[] tradeIsActive = array.new_bool(), tradeMovedToEntry = array.new_bool(), dashTradeActive = array.new_bool(), dashTradeMovedToEntry = array.new_bool()
-var float[] tradeStops = array.new_float(), tradeBEs = array.new_float(), tradeTps = array.new_float(), tradeEntries = array.new_float(), dashTradeEntries = array.new_float(), dashTradeStops = array.new_float(), dashTradeBEs = array.new_float(), dashTradeTPs = array.new_float(), dashTradeRisks = array.new_float()
+var array<line> tradeEntryLines = array.new<line>()
+var array<line> tradeStopLines = array.new<line>()
+var array<line> tradeBeLines = array.new<line>()
+var array<line> tradeR2Lines = array.new<line>()
+var array<line> tradeR3Lines = array.new<line>()
+var array<label> tradeEntryLabels = array.new<label>()
+var array<label> tradeStopLabels = array.new<label>()
+var array<label> tradeBeLabels = array.new<label>()
+var array<label> tradeR2Labels = array.new<label>()
+var array<label> tradeR3Labels = array.new<label>()
+var int[] tradeDirs = array.new_int()
+var int[] dashTradeDirs = array.new_int()
+var bool[] tradeIsActive = array.new_bool()
+var bool[] tradeMovedToEntry = array.new_bool()
+var bool[] dashTradeActive = array.new_bool()
+var bool[] dashTradeMovedToEntry = array.new_bool()
+var float[] tradeStops = array.new_float()
+var float[] tradeBEs = array.new_float()
+var float[] tradeTps = array.new_float()
+var float[] tradeEntries = array.new_float()
+var float[] dashTradeEntries = array.new_float()
+var float[] dashTradeStops = array.new_float()
+var float[] dashTradeBEs = array.new_float()
+var float[] dashTradeTPs = array.new_float()
+var float[] dashTradeRisks = array.new_float()
 var table liveDashboard = table.new(position.bottom_right, 2, 13, bgcolor=color.new(color.black, 100), frame_color=color.new(color.gray, 70), frame_width=1, border_color=color.new(color.gray, 80), border_width=1)
 var table performanceDashboard = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black, 100), frame_color=color.new(color.gray, 70), frame_width=1, border_color=color.new(color.gray, 80), border_width=1)
 
-var int latestBullFvgBar = na, latestBearFvgBar = na, latestBullIfvgBar = na, latestBearIfvgBar = na
-var float latestBullTop = na, latestBullBottom = na, latestBearTop = na, latestBearBottom = na
-var bool latestBullActive = false, latestBearActive = false, latestBullIfvgConfirmed = false, latestBearIfvgConfirmed = false, latestBullSignalDone = false, latestBearSignalDone = false
-var bool latestBullUpperContext = false, latestBearLowerContext = false
-var box latestBullBox = na, latestBearBox = na
-var line latestBullMidline = na, latestBearMidline = na
-var label latestBullFvgLabel = na, latestBearFvgLabel = na
-var bool pendingBullRetest = false, pendingBearRetest = false
-var int pendingBullRetestBar = na, pendingBearRetestBar = na
+var int latestBullFvgBar = na
+var int latestBearFvgBar = na
+var int latestBullIfvgBar = na
+var int latestBearIfvgBar = na
+var float latestBullTop = na
+var float latestBullBottom = na
+var float latestBearTop = na
+var float latestBearBottom = na
+var bool latestBullActive = false
+var bool latestBearActive = false
+var bool latestBullIfvgConfirmed = false
+var bool latestBearIfvgConfirmed = false
+var bool latestBullSignalDone = false
+var bool latestBearSignalDone = false
+var bool latestBullUpperContext = false
+var bool latestBearLowerContext = false
+var box latestBullBox = na
+var box latestBearBox = na
+var line latestBullMidline = na
+var line latestBearMidline = na
+var label latestBullFvgLabel = na
+var label latestBearFvgLabel = na
+var bool pendingBullRetest = false
+var bool pendingBearRetest = false
+var int pendingBullRetestBar = na
+var int pendingBearRetestBar = na
 
-var int statTotalSignals = 0, statLongSignals = 0, statShortSignals = 0, statClosedTrades = 0, statWins = 0, statLosses = 0, statBreakevens = 0
-var float statNetR = 0.0, statGrossWinR = 0.0, statGrossLossR = 0.0
-var bool bullIfvgConfirmedAlert = false, bearIfvgConfirmedAlert = false, bullEntryAlert = false, bearEntryAlert = false, bullTrendlineBreakAlert = false, bearTrendlineBreakAlert = false
+var int statTotalSignals = 0
+var int statLongSignals = 0
+var int statShortSignals = 0
+var int statClosedTrades = 0
+var int statWins = 0
+var int statLosses = 0
+var int statBreakevens = 0
+var float statNetR = 0.0
+var float statGrossWinR = 0.0
+var float statGrossLossR = 0.0
+var bool bullIfvgConfirmedAlert = false
+var bool bearIfvgConfirmedAlert = false
+var bool bullEntryAlert = false
+var bool bearEntryAlert = false
+var bool bullTrendlineBreakAlert = false
+var bool bearTrendlineBreakAlert = false
 bullIfvgConfirmedAlert := false, bearIfvgConfirmedAlert := false, bullEntryAlert := false, bearEntryAlert := false, bullTrendlineBreakAlert := false, bearTrendlineBreakAlert := false
 
 //━━━━━━━━━━━━━━━━━━━━
@@ -365,9 +426,16 @@ phSrc = trendlineSource == "Body" ? math.max(open, close) : high
 plSrc = trendlineSource == "Body" ? math.min(open, close) : low
 ph = ta.pivothigh(phSrc, pivotLeft, pivotRight)
 pl = ta.pivotlow(plSrc, pivotLeft, pivotRight)
-var int prevPhBar = na, lastPhBar = na, prevPlBar = na, lastPlBar = na
-var float prevPhVal = na, lastPhVal = na, prevPlVal = na, lastPlVal = na
-var line resistanceLine = na, supportLine = na
+var int prevPhBar = na
+var int lastPhBar = na
+var int prevPlBar = na
+var int lastPlBar = na
+var float prevPhVal = na
+var float lastPhVal = na
+var float prevPlVal = na
+var float lastPlVal = na
+var line resistanceLine = na
+var line supportLine = na
 if not na(ph)
     prevPhBar := lastPhBar, prevPhVal := lastPhVal, lastPhBar := bar_index - pivotRight, lastPhVal := ph
     if not na(prevPhBar)
@@ -392,7 +460,10 @@ resVal = f_lineValue(resistanceLine)
 supVal = f_lineValue(supportLine)
 bullBreakNow = not na(resVal) and (breakConfirmation == "Close" ? ta.crossover(close, resVal) : high > resVal and high[1] <= resVal[1])
 bearBreakNow = not na(supVal) and (breakConfirmation == "Close" ? ta.crossunder(close, supVal) : low < supVal and low[1] >= supVal[1])
-var int lastBullTrendBreakBar = na, lastBearTrendBreakBar = na, lastSupportRejectBar = na, lastResistanceRejectBar = na
+var int lastBullTrendBreakBar = na
+var int lastBearTrendBreakBar = na
+var int lastSupportRejectBar = na
+var int lastResistanceRejectBar = na
 if bullBreakNow
     lastBullTrendBreakBar := bar_index, bullTrendlineBreakAlert := true
     if not na(resistanceLine)

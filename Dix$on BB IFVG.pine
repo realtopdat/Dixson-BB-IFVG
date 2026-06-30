@@ -102,14 +102,18 @@ trendlineMode = input.string("Off", "Mode", options=["Off", "Bias Only", "Break 
 pivotLeft = input.int(3, "Pivot Left", minval=1, inline="TL2", group=GROUP_TRENDLINES, display=display.none)
 pivotRight = input.int(3, "Pivot Right", minval=1, inline="TL2", group=GROUP_TRENDLINES, display=display.none)
 trendlineSource = input.string("Wick", "Source", options=["Wick", "Body"], inline="TL2", group=GROUP_TRENDLINES, display=display.none)
-maxTrendlinesShown = input.int(10, "Max Shown", minval=0, inline="TL3", group=GROUP_TRENDLINES, display=display.none)
-extendTrendlinesRight = input.bool(true, "Extend Right", inline="TL3", group=GROUP_TRENDLINES, display=display.none)
-breakConfirmation = input.string("Close", "Break Confirm", options=["Wick", "Close"], inline="TL3", group=GROUP_TRENDLINES, display=display.none)
-trendlineBreakLookback = input.int(5, "Break Lookback", minval=0, inline="TL4", group=GROUP_TRENDLINES, display=display.none)
-bullTrendlineColor = input.color(color.new(color.lime, 0), "Support", inline="TL5", group=GROUP_TRENDLINES, display=display.none)
+minLiquidityTouches = input.int(2, "Min Touches", minval=2, maxval=10, inline="TL3", group=GROUP_TRENDLINES, display=display.none)
+minAnchorBars = input.int(5, "Min Anchor Bars", minval=1, inline="TL3", group=GROUP_TRENDLINES, display=display.none)
+touchToleranceMode = input.string("ATR Multiple", "Tolerance Mode", options=["Ticks", "ATR Multiple", "Percent"], inline="TL4", group=GROUP_TRENDLINES, display=display.none)
+touchTolerance = input.float(0.10, "Tolerance", minval=0.0, step=0.01, inline="TL4", group=GROUP_TRENDLINES, display=display.none)
+maxTrendlinesShown = input.int(10, "Max Shown", minval=0, inline="TL5", group=GROUP_TRENDLINES, display=display.none)
+extendTrendlinesRight = input.bool(true, "Extend Right", inline="TL5", group=GROUP_TRENDLINES, display=display.none)
+breakConfirmation = input.string("Close", "Break Confirm", options=["Wick", "Close"], inline="TL5", group=GROUP_TRENDLINES, display=display.none)
+trendlineBreakLookback = input.int(5, "Break Lookback", minval=0, inline="TL6", group=GROUP_TRENDLINES, display=display.none)
+bullTrendlineColor = input.color(color.new(color.blue, 0), "Support", inline="TL7", group=GROUP_TRENDLINES, display=display.none)
 bearTrendlineColor = input.color(color.new(color.red, 0), "Resistance", inline="TL5", group=GROUP_TRENDLINES, display=display.none)
-brokenTrendlineColor = input.color(color.new(color.gray, 0), "Broken", inline="TL5", group=GROUP_TRENDLINES, display=display.none)
-trendlineWidth = input.int(1, "Width", minval=1, maxval=5, inline="TL6", group=GROUP_TRENDLINES, display=display.none)
+brokenTrendlineColor = input.color(color.new(color.gray, 0), "Broken", inline="TL7", group=GROUP_TRENDLINES, display=display.none)
+trendlineWidth = input.int(2, "Width", minval=1, maxval=5, inline="TL7", group=GROUP_TRENDLINES, display=display.none)
 
 //━━━━━━━━━━━━━━━━━━━━
 // Session VWAP Filter
@@ -285,6 +289,11 @@ f_deleteTradeAt(int i, array<line> eL, array<line> sL, array<line> bL, array<lin
 f_lineValue(line ln) =>
     not na(ln) ? line.get_price(ln, bar_index) : na
 
+f_toleranceValue(string mode, float value, float atrV) =>
+    mode == "Ticks" ? syminfo.mintick * value :
+     mode == "Percent" ? close * value * 0.01 :
+     atrV * value
+
 //━━━━━━━━━━━━━━━━━━━━
 // Core Series
 //━━━━━━━━━━━━━━━━━━━━
@@ -451,15 +460,26 @@ var float prevPlVal = na
 var float lastPlVal = na
 var line resistanceLine = na
 var line supportLine = na
+var int supportLiquidityTouches = 0
+var int resistanceLiquidityTouches = 0
+var int lastSupportTouchBar = na
+var int lastResistanceTouchBar = na
+liquidityTolerance = f_toleranceValue(touchToleranceMode, touchTolerance, atrValue)
 if not na(ph)
     prevPhBar := lastPhBar, prevPhVal := lastPhVal, lastPhBar := bar_index - pivotRight, lastPhVal := ph
-    if not na(prevPhBar)
+    validResistanceLiquidity = not na(prevPhBar) and lastPhBar - prevPhBar >= minAnchorBars and lastPhVal < prevPhVal
+    if validResistanceLiquidity
         resistanceLine := line.new(prevPhBar, prevPhVal, lastPhBar, lastPhVal, color=bearTrendlineColor, width=trendlineWidth, extend=extendTrendlinesRight ? extend.right : extend.none)
+        resistanceLiquidityTouches := 2
+        lastResistanceTouchBar := lastPhBar
         array.push(trendlines, resistanceLine)
 if not na(pl)
     prevPlBar := lastPlBar, prevPlVal := lastPlVal, lastPlBar := bar_index - pivotRight, lastPlVal := pl
-    if not na(prevPlBar)
+    validSupportLiquidity = not na(prevPlBar) and lastPlBar - prevPlBar >= minAnchorBars and lastPlVal > prevPlVal
+    if validSupportLiquidity
         supportLine := line.new(prevPlBar, prevPlVal, lastPlBar, lastPlVal, color=bullTrendlineColor, width=trendlineWidth, extend=extendTrendlinesRight ? extend.right : extend.none)
+        supportLiquidityTouches := 2
+        lastSupportTouchBar := lastPlBar
         array.push(trendlines, supportLine)
 if not (showTrendlinesMaster and showTrendlines)
     if array.size(trendlines) > 0
@@ -475,10 +495,20 @@ resVal = f_lineValue(resistanceLine)
 supVal = f_lineValue(supportLine)
 resCloseCross = ta.crossover(close, resVal)
 supCloseCross = ta.crossunder(close, supVal)
-resWickCross = high > resVal and high[1] <= resVal[1]
-supWickCross = low < supVal and low[1] >= supVal[1]
-bullBreakNow = not na(resVal) and (breakConfirmation == "Close" ? resCloseCross : resWickCross)
-bearBreakNow = not na(supVal) and (breakConfirmation == "Close" ? supCloseCross : supWickCross)
+resWickCross = high > resVal + liquidityTolerance and high[1] <= resVal[1] + liquidityTolerance
+supWickCross = low < supVal - liquidityTolerance and low[1] >= supVal[1] - liquidityTolerance
+supportRespectNow = not na(supVal) and low <= supVal + liquidityTolerance and close > supVal and bar_index != lastSupportTouchBar
+resistanceRespectNow = not na(resVal) and high >= resVal - liquidityTolerance and close < resVal and bar_index != lastResistanceTouchBar
+if supportRespectNow
+    supportLiquidityTouches += 1
+    lastSupportTouchBar := bar_index
+if resistanceRespectNow
+    resistanceLiquidityTouches += 1
+    lastResistanceTouchBar := bar_index
+supportLiquidityQualified = supportLiquidityTouches >= minLiquidityTouches
+resistanceLiquidityQualified = resistanceLiquidityTouches >= minLiquidityTouches
+bullBreakNow = resistanceLiquidityQualified and not na(resVal) and (breakConfirmation == "Close" ? resCloseCross : resWickCross)
+bearBreakNow = supportLiquidityQualified and not na(supVal) and (breakConfirmation == "Close" ? supCloseCross : supWickCross)
 var int lastBullTrendBreakBar = na
 var int lastBearTrendBreakBar = na
 var int lastSupportRejectBar = na
@@ -491,16 +521,16 @@ if bearBreakNow
     lastBearTrendBreakBar := bar_index, bearTrendlineBreakAlert := true
     if not na(supportLine)
         line.set_color(supportLine, brokenTrendlineColor)
-if not na(supVal) and low <= supVal and close > supVal
+if supportLiquidityQualified and supportRespectNow
     lastSupportRejectBar := bar_index
-if not na(resVal) and high >= resVal and close < resVal
+if resistanceLiquidityQualified and resistanceRespectNow
     lastResistanceRejectBar := bar_index
 bullBreakRecent = not na(lastBullTrendBreakBar) and (trendlineBreakLookback == 0 or bar_index - lastBullTrendBreakBar <= trendlineBreakLookback)
 bearBreakRecent = not na(lastBearTrendBreakBar) and (trendlineBreakLookback == 0 or bar_index - lastBearTrendBreakBar <= trendlineBreakLookback)
 supportRejectRecent = not na(lastSupportRejectBar) and (trendlineBreakLookback == 0 or bar_index - lastSupportRejectBar <= trendlineBreakLookback)
 resistanceRejectRecent = not na(lastResistanceRejectBar) and (trendlineBreakLookback == 0 or bar_index - lastResistanceRejectBar <= trendlineBreakLookback)
-trendLongOk = not useTrendlineFilter or trendlineMode == "Off" ? true : trendlineMode == "Bias Only" ? (na(resVal) or close > resVal or bullBreakRecent) : trendlineMode == "Break Required" ? bullBreakRecent : supportRejectRecent
-trendShortOk = not useTrendlineFilter or trendlineMode == "Off" ? true : trendlineMode == "Bias Only" ? (na(supVal) or close < supVal or bearBreakRecent) : trendlineMode == "Break Required" ? bearBreakRecent : resistanceRejectRecent
+trendLongOk = not useTrendlineFilter or trendlineMode == "Off" ? true : trendlineMode == "Bias Only" ? (not resistanceLiquidityQualified or na(resVal) or close > resVal or bullBreakRecent) : trendlineMode == "Break Required" ? bullBreakRecent : supportRejectRecent
+trendShortOk = not useTrendlineFilter or trendlineMode == "Off" ? true : trendlineMode == "Bias Only" ? (not supportLiquidityQualified or na(supVal) or close < supVal or bearBreakRecent) : trendlineMode == "Break Required" ? bearBreakRecent : resistanceRejectRecent
 
 //━━━━━━━━━━━━━━━━━━━━
 // FVG Detection / IFVG Confirmation

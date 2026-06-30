@@ -68,11 +68,6 @@ htfBbFillOpacity = input.int(93, "HTF Fill Opacity", minval=0, maxval=100, inlin
 //━━━━━━━━━━━━━━━━━━━━
 bandTouchSource = input.string("HTF Bands", "Band Touch Source", options=["Chart Bands", "HTF Bands", "Chart or HTF", "Chart and HTF"], inline="BL1", group=GROUP_BAND_LOGIC, display=display.none)
 bandInteractionType = input.string("Wick Touch", "Interaction", options=["Wick Touch", "Body Touch", "Close Outside", "Reclaim Inside", "Any Touch or Close"], inline="BL1", group=GROUP_BAND_LOGIC, display=display.none)
-bandTouchLookback = input.int(5, "Touch Lookback", minval=0, inline="BL2", group=GROUP_BAND_LOGIC, display=display.none)
-requireFvgAfterBandTouch = input.bool(true, "FVG After Touch", inline="BL2", group=GROUP_BAND_LOGIC, display=display.none)
-maxBarsBandTouchToFvg = input.int(10, "Max Touch→FVG", minval=0, inline="BL2", group=GROUP_BAND_LOGIC, display=display.none)
-requireBandContextAtFvgCreation = input.bool(true, "Require Context @ FVG", inline="BL3", group=GROUP_BAND_LOGIC, display=display.none)
-requireBandContextAtIfvgConfirm = input.bool(false, "Require Context @ IFVG", inline="BL3", group=GROUP_BAND_LOGIC, display=display.none)
 
 //━━━━━━━━━━━━━━━━━━━━
 // FVG Settings
@@ -217,6 +212,12 @@ f_upperInteraction(float upperBand, string mode) =>
     reclaim = close[1] > upperBand[1] and close < upperBand
     mode == "Wick Touch" ? wickTouch : mode == "Body Touch" ? bodyTouch : mode == "Close Outside" ? closeOutside : mode == "Reclaim Inside" ? reclaim : (wickTouch or bodyTouch or closeOutside or reclaim)
 
+f_selectBandContext(bool chartTouched, bool htfTouched, string sourceMode) =>
+    sourceMode == "Chart Bands" ? chartTouched :
+     sourceMode == "HTF Bands" ? htfTouched :
+     sourceMode == "Chart or HTF" ? (chartTouched or htfTouched) :
+     (chartTouched and htfTouched)
+
 f_cleanupVisuals(array<box> boxesArr, array<line> linesArr, int cap) =>
     if cap > 0
         while array.size(boxesArr) > cap
@@ -313,16 +314,14 @@ htfLowerTouchRaw = f_lowerInteraction(htfLower, bandInteractionType)
 htfUpperTouchRaw = f_upperInteraction(htfUpper, bandInteractionType)
 htfLowerTouch = useHtfBandsForEntry and htfLowerTouchRaw
 htfUpperTouch = useHtfBandsForEntry and htfUpperTouchRaw
-chartLowerBarsSince = ta.barssince(chartLowerTouch)
-chartUpperBarsSince = ta.barssince(chartUpperTouch)
-htfLowerBarsSince = ta.barssince(htfLowerTouch)
-htfUpperBarsSince = ta.barssince(htfUpperTouch)
-chartLowerRecent = bandTouchLookback == 0 ? chartLowerTouch : chartLowerBarsSince <= bandTouchLookback
-chartUpperRecent = bandTouchLookback == 0 ? chartUpperTouch : chartUpperBarsSince <= bandTouchLookback
-htfLowerRecent = bandTouchLookback == 0 ? htfLowerTouch : htfLowerBarsSince <= bandTouchLookback
-htfUpperRecent = bandTouchLookback == 0 ? htfUpperTouch : htfUpperBarsSince <= bandTouchLookback
-lowerBandContextNow = bandTouchSource == "Chart Bands" ? chartLowerRecent : bandTouchSource == "HTF Bands" ? htfLowerRecent : bandTouchSource == "Chart or HTF" ? (chartLowerRecent or htfLowerRecent) : (chartLowerRecent and htfLowerRecent)
-upperBandContextNow = bandTouchSource == "Chart Bands" ? chartUpperRecent : bandTouchSource == "HTF Bands" ? htfUpperRecent : bandTouchSource == "Chart or HTF" ? (chartUpperRecent or htfUpperRecent) : (chartUpperRecent and htfUpperRecent)
+chartLowerFormationTouch = chartLowerTouch or chartLowerTouch[1] or chartLowerTouch[2]
+chartUpperFormationTouch = chartUpperTouch or chartUpperTouch[1] or chartUpperTouch[2]
+htfLowerFormationTouch = htfLowerTouch or htfLowerTouch[1] or htfLowerTouch[2]
+htfUpperFormationTouch = htfUpperTouch or htfUpperTouch[1] or htfUpperTouch[2]
+lowerBandContextNow = f_selectBandContext(chartLowerTouch, htfLowerTouch, bandTouchSource)
+upperBandContextNow = f_selectBandContext(chartUpperTouch, htfUpperTouch, bandTouchSource)
+lowerFormationContextNow = f_selectBandContext(chartLowerFormationTouch, htfLowerFormationTouch, bandTouchSource)
+upperFormationContextNow = f_selectBandContext(chartUpperFormationTouch, htfUpperFormationTouch, bandTouchSource)
 
 var int lastLowerBandTouchBar = na
 var int lastUpperBandTouchBar = na
@@ -335,9 +334,8 @@ if chartUpperTouch or htfUpperTouch
     lastUpperBandTouchBar := bar_index
     lastUpperBandTouchSourceText := chartUpperTouch and htfUpperTouch ? "Both" : chartUpperTouch ? "Chart" : "HTF"
 
-f_contextRecent(int touchBar) => not requireFvgAfterBandTouch or (not na(touchBar) and (maxBarsBandTouchToFvg == 0 or bar_index - touchBar <= maxBarsBandTouchToFvg))
-lowerFvgContext = lowerBandContextNow and f_contextRecent(lastLowerBandTouchBar)
-upperFvgContext = upperBandContextNow and f_contextRecent(lastUpperBandTouchBar)
+lowerFvgContext = lowerFormationContextNow
+upperFvgContext = upperFormationContextNow
 
 //━━━━━━━━━━━━━━━━━━━━
 // State Storage
@@ -403,6 +401,10 @@ var bool latestBullUpperContext = false
 var bool latestBearLowerContext = false
 var bool latestBullEntryEligible = false
 var bool latestBearEntryEligible = false
+var bool latestBullChartUpperConfirmTouch = false
+var bool latestBullHtfUpperConfirmTouch = false
+var bool latestBearChartLowerConfirmTouch = false
+var bool latestBearHtfLowerConfirmTouch = false
 var box latestBullBox = na
 var box latestBearBox = na
 var line latestBullMidline = na
@@ -509,7 +511,7 @@ if bullFvgFound
     fvgTop = low, fvgBottom = high[2]
     sizeOk = not fvgSizeFilterEnabled or f_sizeValue(fvgTop, fvgBottom, fvgSizeMode, atrValue) >= minFvgSize
     if sizeOk
-        latestBullFvgBar := bar_index, latestBullTop := fvgTop, latestBullBottom := fvgBottom, latestBullActive := true, latestBullIfvgConfirmed := false, latestBullIfvgBar := na, latestBullSignalDone := false, latestBullUpperContext := upperFvgContext, latestBullEntryEligible := false, pendingBearRetest := false
+        latestBullFvgBar := bar_index, latestBullTop := fvgTop, latestBullBottom := fvgBottom, latestBullActive := true, latestBullIfvgConfirmed := false, latestBullIfvgBar := na, latestBullSignalDone := false, latestBullUpperContext := upperFvgContext, latestBullEntryEligible := false, latestBullChartUpperConfirmTouch := false, latestBullHtfUpperConfirmTouch := false, pendingBearRetest := false
         if showFvgs and showBullFvg
             latestBullBox := box.new(bar_index - 2, fvgTop, bar_index, fvgBottom, border_color=color.new(bullFvgColor, 0), bgcolor=color.new(bullFvgColor, fvgTransparency), extend=extend.none)
             array.push(bullBoxes, latestBullBox)
@@ -524,7 +526,7 @@ if bearFvgFound
     fvgTop = low[2], fvgBottom = high
     sizeOk = not fvgSizeFilterEnabled or f_sizeValue(fvgTop, fvgBottom, fvgSizeMode, atrValue) >= minFvgSize
     if sizeOk
-        latestBearFvgBar := bar_index, latestBearTop := fvgTop, latestBearBottom := fvgBottom, latestBearActive := true, latestBearIfvgConfirmed := false, latestBearIfvgBar := na, latestBearSignalDone := false, latestBearLowerContext := lowerFvgContext, latestBearEntryEligible := false, pendingBullRetest := false
+        latestBearFvgBar := bar_index, latestBearTop := fvgTop, latestBearBottom := fvgBottom, latestBearActive := true, latestBearIfvgConfirmed := false, latestBearIfvgBar := na, latestBearSignalDone := false, latestBearLowerContext := lowerFvgContext, latestBearEntryEligible := false, latestBearChartLowerConfirmTouch := false, latestBearHtfLowerConfirmTouch := false, pendingBullRetest := false
         if showFvgs and showBearFvg
             latestBearBox := box.new(bar_index - 2, fvgTop, bar_index, fvgBottom, border_color=color.new(bearFvgColor, 0), bgcolor=color.new(bearFvgColor, fvgTransparency), extend=extend.none)
             array.push(bearBoxes, latestBearBox)
@@ -553,17 +555,24 @@ if latestBearActive and not latestBearIfvgConfirmed
     if not na(latestBearMidline)
         line.set_x2(latestBearMidline, f_labelAttachX(latestBearFvgLabel, rightEdge))
 
-longFormationContextOk = not requireBandContextAtFvgCreation or latestBearLowerContext
-shortFormationContextOk = not requireBandContextAtFvgCreation or latestBullUpperContext
-longConfirmContextOk = not requireBandContextAtIfvgConfirm or lowerBandContextNow
-shortConfirmContextOk = not requireBandContextAtIfvgConfirm or upperBandContextNow
+if latestBearActive and not latestBearIfvgConfirmed
+    latestBearChartLowerConfirmTouch := latestBearChartLowerConfirmTouch or chartLowerTouch
+    latestBearHtfLowerConfirmTouch := latestBearHtfLowerConfirmTouch or htfLowerTouch
+if latestBullActive and not latestBullIfvgConfirmed
+    latestBullChartUpperConfirmTouch := latestBullChartUpperConfirmTouch or chartUpperTouch
+    latestBullHtfUpperConfirmTouch := latestBullHtfUpperConfirmTouch or htfUpperTouch
+
+longConfirmWindowContextOk = f_selectBandContext(latestBearChartLowerConfirmTouch, latestBearHtfLowerConfirmTouch, bandTouchSource)
+shortConfirmWindowContextOk = f_selectBandContext(latestBullChartUpperConfirmTouch, latestBullHtfUpperConfirmTouch, bandTouchSource)
+longEntryBandContextOk = latestBearLowerContext or longConfirmWindowContextOk
+shortEntryBandContextOk = latestBullUpperContext or shortConfirmWindowContextOk
 
 if latestBearActive and not latestBearIfvgConfirmed
     barsFromCreate = bar_index - latestBearFvgBar
     if ifvgConfirmBarLimit == 0 or barsFromCreate <= ifvgConfirmBarLimit
         if barstate.isconfirmed and close > latestBearTop
             latestBearIfvgConfirmed := true, latestBearIfvgBar := bar_index, bullIfvgConfirmedAlert := true
-            latestBearEntryEligible := longFormationContextOk and longConfirmContextOk
+            latestBearEntryEligible := longEntryBandContextOk
             if entryMode == "First IFVG Retest" and latestBearEntryEligible
                 pendingBullRetest := true, pendingBullRetestBar := bar_index
             if not na(latestBearBox)
@@ -578,7 +587,7 @@ if latestBullActive and not latestBullIfvgConfirmed
     if ifvgConfirmBarLimit == 0 or barsFromCreate <= ifvgConfirmBarLimit
         if barstate.isconfirmed and close < latestBullBottom
             latestBullIfvgConfirmed := true, latestBullIfvgBar := bar_index, bearIfvgConfirmedAlert := true
-            latestBullEntryEligible := shortFormationContextOk and shortConfirmContextOk
+            latestBullEntryEligible := shortEntryBandContextOk
             if entryMode == "First IFVG Retest" and latestBullEntryEligible
                 pendingBearRetest := true, pendingBearRetestBar := bar_index
             if not na(latestBullBox)

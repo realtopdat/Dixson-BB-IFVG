@@ -5,12 +5,12 @@ indicator("Dix$on BB IFVG", overlay=true, max_boxes_count=500, max_lines_count=5
 // Input Groups
 //━━━━━━━━━━━━━━━━━━━━
 string GROUP_MASTER = "• Master ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-string GROUP_BB = "• Bollinger Bands ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-string GROUP_HTF_BB = "• HTF Bollinger Bands ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_BB = "• Bollinger Bands 1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_HTF_BB = "• Bollinger Bands 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 string GROUP_BAND_LOGIC = "• Band Entry Logic ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 string GROUP_FVG = "• FVG Core Settings ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 string GROUP_IFVG = "• IFVG & Entry Logic ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-string GROUP_TRENDLINES = "• Auto Trendlines ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+string GROUP_TRENDLINES = "• Liquidity Trendlines ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 string GROUP_SESSION_VWAP = "• Session VWAP Filter ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 string GROUP_ENTRY = "• Entry Visuals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 string GROUP_DISPLAY = "• Display Caps & Visibility ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -21,20 +21,17 @@ string GROUP_ALERTS = "• Alerts ━━━━━━━━━━━━━━━�
 //━━━━━━━━━━━━━━━━━━━━
 // Master
 //━━━━━━━━━━━━━━━━━━━━
-showBb = input.bool(true, "Show Bollinger Bands", inline="M1", group=GROUP_MASTER, display=display.none)
-showHtfBb = input.bool(true, "Show HTF Bollinger Bands", inline="M1", group=GROUP_MASTER, display=display.none)
-showBandFill = input.bool(true, "Show Band Fill", inline="M1", group=GROUP_MASTER, display=display.none)
-showFvgs = input.bool(true, "Show FVGs", inline="M2", group=GROUP_MASTER, display=display.none)
-showIfvgEntryZones = input.bool(true, "Show IFVG Entry Zones", inline="M2", group=GROUP_MASTER, display=display.none)
+showBands = input.bool(true, "Show Bands", inline="M1", group=GROUP_MASTER, display=display.none)
 showEntries = input.bool(true, "Show Entries", inline="M2", group=GROUP_MASTER, display=display.none)
 showTrendlinesMaster = input.bool(true, "Show Trendlines", inline="M3", group=GROUP_MASTER, display=display.none)
-enableAlerts = input.bool(true, "Enable Alerts", inline="M3", group=GROUP_MASTER, display=display.none)
-fillOpacity = input.int(85, "Fill Opacity", minval=0, maxval=100, inline="M3", group=GROUP_MASTER, display=display.none)
+showTradeLevels = input.bool(true, "Show Trade Levels", inline="M4", group=GROUP_MASTER, display=display.none)
 
 //━━━━━━━━━━━━━━━━━━━━
-// Bollinger Bands
+// Bollinger Bands 1
 //━━━━━━━━━━━━━━━━━━━━
-bbTf = input.timeframe("", "Chart BB TF", inline="BB1", group=GROUP_BB, display=display.none)
+showBb = input.bool(true, "Enable Bands 1", inline="BB0", group=GROUP_BB, display=display.none)
+showBands1Fill = input.bool(true, "Show Bands 1 Fill", inline="BB0", group=GROUP_BB, display=display.none)
+bbTf = input.timeframe("", "Bands 1 TF", inline="BB1", group=GROUP_BB, display=display.none)
 bbLength = input.int(20, "Length", minval=1, inline="BB1", group=GROUP_BB, display=display.none)
 bbMult = input.float(2.0, "Deviation", minval=0.01, step=0.1, inline="BB1", group=GROUP_BB, display=display.none)
 bbSource = input.source(close, "Source", inline="BB2", group=GROUP_BB, display=display.none)
@@ -44,14 +41,16 @@ bbUpperColor = input.color(color.new(color.aqua, 0), "Upper", inline="BB3", grou
 bbBasisColor = input.color(color.new(color.gray, 0), "Basis", inline="BB3", group=GROUP_BB, display=display.none)
 bbLowerColor = input.color(color.new(color.aqua, 0), "Lower", inline="BB3", group=GROUP_BB, display=display.none)
 bbWidth = input.int(1, "Width", minval=1, maxval=5, inline="BB4", group=GROUP_BB, display=display.none)
-bbFillOpacity = input.int(90, "Fill Opacity", minval=0, maxval=100, inline="BB4", group=GROUP_BB, display=display.none)
+bbFillOpacity = input.int(90, "Bands 1 Fill Opacity", minval=0, maxval=100, inline="BB4", group=GROUP_BB, display=display.none)
 
 //━━━━━━━━━━━━━━━━━━━━
-// HTF Bollinger Bands
+// Bollinger Bands 2
 //━━━━━━━━━━━━━━━━━━━━
-useHtfBandsForDisplay = input.bool(true, "Use HTF Display", inline="HTF1", group=GROUP_HTF_BB, display=display.none)
-useHtfBandsForEntry = input.bool(true, "Use HTF Logic", inline="HTF1", group=GROUP_HTF_BB, display=display.none)
-htfBbTf = input.timeframe("5", "HTF", inline="HTF1", group=GROUP_HTF_BB, display=display.none)
+showHtfBb = input.bool(true, "Enable Bands 2", inline="B2_0", group=GROUP_HTF_BB, display=display.none)
+useHtfBandsForEntry = input.bool(true, "Use Bands 2 Logic", inline="B2_0", group=GROUP_HTF_BB, display=display.none)
+htfBbFill = input.bool(true, "Show Bands 2 Fill", inline="B2_1", group=GROUP_HTF_BB, display=display.none)
+htfBbFillOpacity = input.int(93, "Bands 2 Fill Opacity", minval=0, maxval=100, inline="B2_1", group=GROUP_HTF_BB, display=display.none)
+htfBbTf = input.timeframe("5", "Bands 2 TF", inline="HTF1", group=GROUP_HTF_BB, display=display.none)
 htfBbLength = input.int(20, "Length", minval=1, inline="HTF2", group=GROUP_HTF_BB, display=display.none)
 htfBbMult = input.float(2.0, "Deviation", minval=0.01, step=0.1, inline="HTF2", group=GROUP_HTF_BB, display=display.none)
 htfBbSource = input.source(close, "Source", inline="HTF3", group=GROUP_HTF_BB, display=display.none)
@@ -60,18 +59,17 @@ htfBbWidth = input.int(1, "Width", minval=1, maxval=5, inline="HTF4", group=GROU
 htfBbUpperColor = input.color(color.new(color.purple, 0), "Upper", inline="HTF5", group=GROUP_HTF_BB, display=display.none)
 htfBbBasisColor = input.color(color.new(color.fuchsia, 0), "Basis", inline="HTF5", group=GROUP_HTF_BB, display=display.none)
 htfBbLowerColor = input.color(color.new(color.purple, 0), "Lower", inline="HTF5", group=GROUP_HTF_BB, display=display.none)
-htfBbFill = input.bool(true, "HTF Fill", inline="HTF6", group=GROUP_HTF_BB, display=display.none)
-htfBbFillOpacity = input.int(93, "HTF Fill Opacity", minval=0, maxval=100, inline="HTF6", group=GROUP_HTF_BB, display=display.none)
 
 //━━━━━━━━━━━━━━━━━━━━
 // Band Entry Logic
 //━━━━━━━━━━━━━━━━━━━━
-bandTouchSource = input.string("HTF Bands", "Band Touch Source", options=["Chart Bands", "HTF Bands", "Chart or HTF", "Chart and HTF"], inline="BL1", group=GROUP_BAND_LOGIC, display=display.none)
+bandTouchSource = input.string("Bands 2", "Band Touch Source", options=["Bands 1", "Bands 2", "Bands 1 or 2", "Bands 1 and 2"], inline="BL1", group=GROUP_BAND_LOGIC, display=display.none)
 bandInteractionType = input.string("Wick Touch", "Interaction", options=["Wick Touch", "Body Touch", "Close Outside", "Reclaim Inside", "Any Touch or Close"], inline="BL1", group=GROUP_BAND_LOGIC, display=display.none)
 
 //━━━━━━━━━━━━━━━━━━━━
 // FVG Settings
 //━━━━━━━━━━━━━━━━━━━━
+showFvgs = input.bool(true, "Show FVGs", inline="FVG0", group=GROUP_FVG, display=display.none)
 showBullFvg = input.bool(true, "Show Bull FVG", inline="FVG1", group=GROUP_FVG, display=display.none)
 showBearFvg = input.bool(true, "Show Bear FVG", inline="FVG1", group=GROUP_FVG, display=display.none)
 bullFvgColor = input.color(color.new(color.lime, 0), "Bull Color", inline="FVG1", group=GROUP_FVG, display=display.none)
@@ -94,9 +92,9 @@ entryMode = input.string("IFVG Close", "Entry Mode", options=["IFVG Close", "Fir
 maxRetestBars = input.int(10, "Max Retest Bars", minval=1, inline="IFVG2", group=GROUP_IFVG, tooltip="Used only when Entry Mode is First IFVG Retest.", display=display.none)
 
 //━━━━━━━━━━━━━━━━━━━━
-// Auto Trendlines
+// Liquidity Trendlines
 //━━━━━━━━━━━━━━━━━━━━
-showTrendlines = input.bool(true, "Show Trendlines", inline="TL1", group=GROUP_TRENDLINES, display=display.none)
+showTrendlines = input.bool(true, "Enable Liquidity Trendlines", inline="TL1", group=GROUP_TRENDLINES, display=display.none)
 useTrendlineFilter = input.bool(false, "Use Filter", inline="TL1", group=GROUP_TRENDLINES, display=display.none)
 trendlineMode = input.string("Off", "Mode", options=["Off", "Bias Only", "Break Required", "Rejection Required"], inline="TL1", group=GROUP_TRENDLINES, display=display.none)
 showShortLiquidityLine = input.bool(true, "Short-Term Line", inline="TL2", group=GROUP_TRENDLINES, display=display.none)
@@ -128,6 +126,8 @@ sessionVwapWidth = input.int(2, "Width", minval=1, maxval=5, inline="VWAP2", gro
 //━━━━━━━━━━━━━━━━━━━━
 // Entry Visuals
 //━━━━━━━━━━━━━━━━━━━━
+showEntryLabels = input.bool(true, "Show Entry Labels", inline="E0", group=GROUP_ENTRY, display=display.none)
+showIfvgEntryZones = input.bool(true, "Show IFVG Entry Zones", inline="E0", group=GROUP_ENTRY, display=display.none)
 entryLabelSizeInput = input.string("Tiny", "Entry Label Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], inline="E1", group=GROUP_ENTRY, display=display.none)
 entryMarkerOffsetAtrMult = input.float(0.2, "Marker Offset ATR", minval=0.0, step=0.05, inline="E1", group=GROUP_ENTRY, display=display.none)
 longEntryLabelColor = input.color(color.new(color.lime, 0), "Long Label", inline="E2", group=GROUP_ENTRY, display=display.none)
@@ -142,7 +142,7 @@ ifvgEntryZoneCap = input.int(10, "IFVG Zone Cap", minval=0, inline="D1", group=G
 entryDisplayCap = input.int(10, "Entry Label Cap", minval=0, inline="D1", group=GROUP_DISPLAY, display=display.none)
 trendlineDisplayCap = input.int(10, "Trendline Cap", minval=0, inline="D2", group=GROUP_DISPLAY, display=display.none)
 
-showTradeLevels = input.bool(true, "Show Levels", inline="TR1", group=GROUP_TRADE, display=display.none)
+enableTradeLevels = input.bool(true, "Enable Trade Levels", inline="TR1", group=GROUP_TRADE, display=display.none)
 showTradeHistory = input.bool(false, "Show History", inline="TR1", group=GROUP_TRADE, display=display.none)
 keepActiveTrades = input.bool(true, "Keep Active", inline="TR1", group=GROUP_TRADE, display=display.none)
 tradeLevelHistory = input.int(1, "History", minval=0, maxval=200, inline="TR2", group=GROUP_TRADE, display=display.none)
@@ -167,7 +167,9 @@ performanceDashboardPositionInput = input.string("Top Right", "Performance Posit
 dashboardTextSizeInput = input.string("Tiny", "Text Size", options=["Tiny", "Small", "Normal"], inline="DA3", group=GROUP_DASHBOARD, display=display.none)
 dashboardBgOpacity = input.int(15, "BG Opacity", minval=0, maxval=100, inline="DA3", group=GROUP_DASHBOARD, display=display.none)
 
-// Alerts group placeholder: alertconditions are gated by Master > Enable Alerts.
+// Alerts
+//━━━━━━━━━━━━━━━━━━━━
+enableAlerts = input.bool(true, "Enable Alerts", inline="AL1", group=GROUP_ALERTS, display=display.none)
 
 //━━━━━━━━━━━━━━━━━━━━
 // Helpers
@@ -219,9 +221,9 @@ f_upperInteraction(float upperBand, string mode) =>
     mode == "Wick Touch" ? wickTouch : mode == "Body Touch" ? bodyTouch : mode == "Close Outside" ? closeOutside : mode == "Reclaim Inside" ? reclaim : (wickTouch or bodyTouch or closeOutside or reclaim)
 
 f_selectBandContext(bool chartTouched, bool htfTouched, string sourceMode) =>
-    sourceMode == "Chart Bands" ? chartTouched :
-     sourceMode == "HTF Bands" ? htfTouched :
-     sourceMode == "Chart or HTF" ? (chartTouched or htfTouched) :
+    sourceMode == "Bands 1" ? chartTouched :
+     sourceMode == "Bands 2" ? htfTouched :
+     sourceMode == "Bands 1 or 2" ? (chartTouched or htfTouched) :
      (chartTouched and htfTouched)
 
 f_cleanupVisuals(array<box> boxesArr, array<line> linesArr, int cap) =>
@@ -304,14 +306,14 @@ bbTfReq = bbTf == "" ? timeframe.period : bbTf
 [bbBasis, bbUpper, bbLower, bbBandwidth, bbPercentB] = request.security(syminfo.tickerid, bbTfReq, f_bb(bbSource, bbLength, bbMult, bbMaType), barmerge.gaps_off, barmerge.lookahead_off)
 [htfBasis, htfUpper, htfLower, htfBandwidth, htfPercentB] = request.security(syminfo.tickerid, htfBbTf, f_bb(htfBbSource, htfBbLength, htfBbMult, htfBbMaType), barmerge.gaps_off, barmerge.lookahead_off)
 
-chartUpperPlot = plot(showBb ? bbUpper : na, "BB Upper", color=bbUpperColor, linewidth=bbWidth)
-chartBasisPlot = plot(showBb and showBbBasis ? bbBasis : na, "BB Basis", color=bbBasisColor, linewidth=bbWidth)
-chartLowerPlot = plot(showBb ? bbLower : na, "BB Lower", color=bbLowerColor, linewidth=bbWidth)
-fill(chartUpperPlot, chartLowerPlot, color=(showBb and showBandFill) ? color.new(bbUpperColor, bbFillOpacity) : na, title="BB Fill")
-htfUpperPlot = plot(showHtfBb and useHtfBandsForDisplay ? htfUpper : na, "HTF BB Upper", color=htfBbUpperColor, linewidth=htfBbWidth)
-htfBasisPlot = plot(showHtfBb and useHtfBandsForDisplay ? htfBasis : na, "HTF BB Basis", color=htfBbBasisColor, linewidth=htfBbWidth)
-htfLowerPlot = plot(showHtfBb and useHtfBandsForDisplay ? htfLower : na, "HTF BB Lower", color=htfBbLowerColor, linewidth=htfBbWidth)
-fill(htfUpperPlot, htfLowerPlot, color=(showHtfBb and useHtfBandsForDisplay and htfBbFill and showBandFill) ? color.new(htfBbUpperColor, htfBbFillOpacity) : na, title="HTF BB Fill")
+chartUpperPlot = plot(showBands and showBb ? bbUpper : na, "Bands 1 Upper", color=bbUpperColor, linewidth=bbWidth)
+chartBasisPlot = plot(showBands and showBb and showBbBasis ? bbBasis : na, "Bands 1 Basis", color=bbBasisColor, linewidth=bbWidth)
+chartLowerPlot = plot(showBands and showBb ? bbLower : na, "Bands 1 Lower", color=bbLowerColor, linewidth=bbWidth)
+fill(chartUpperPlot, chartLowerPlot, color=(showBands and showBb and showBands1Fill) ? color.new(bbUpperColor, bbFillOpacity) : na, title="Bands 1 Fill")
+htfUpperPlot = plot(showBands and showHtfBb ? htfUpper : na, "Bands 2 Upper", color=htfBbUpperColor, linewidth=htfBbWidth)
+htfBasisPlot = plot(showBands and showHtfBb ? htfBasis : na, "Bands 2 Basis", color=htfBbBasisColor, linewidth=htfBbWidth)
+htfLowerPlot = plot(showBands and showHtfBb ? htfLower : na, "Bands 2 Lower", color=htfBbLowerColor, linewidth=htfBbWidth)
+fill(htfUpperPlot, htfLowerPlot, color=(showBands and showHtfBb and htfBbFill) ? color.new(htfBbUpperColor, htfBbFillOpacity) : na, title="Bands 2 Fill")
 
 sessionVwap = ta.vwap(sessionVwapSource)
 sessionVwapBullOk = not useSessionVwapFilter or (not na(sessionVwap) and close > sessionVwap)
@@ -319,12 +321,12 @@ sessionVwapBearOk = not useSessionVwapFilter or (not na(sessionVwap) and close <
 plot(showSessionVwap ? sessionVwap : na, "Session VWAP", color=close >= sessionVwap ? bullFvgColor : bearFvgColor, linewidth=sessionVwapWidth)
 
 // Band touch state.
-chartLowerTouch = f_lowerInteraction(bbLower, bandInteractionType)
-chartUpperTouch = f_upperInteraction(bbUpper, bandInteractionType)
+chartLowerTouch = showBb and f_lowerInteraction(bbLower, bandInteractionType)
+chartUpperTouch = showBb and f_upperInteraction(bbUpper, bandInteractionType)
 htfLowerTouchRaw = f_lowerInteraction(htfLower, bandInteractionType)
 htfUpperTouchRaw = f_upperInteraction(htfUpper, bandInteractionType)
-htfLowerTouch = useHtfBandsForEntry and htfLowerTouchRaw
-htfUpperTouch = useHtfBandsForEntry and htfUpperTouchRaw
+htfLowerTouch = showHtfBb and useHtfBandsForEntry and htfLowerTouchRaw
+htfUpperTouch = showHtfBb and useHtfBandsForEntry and htfUpperTouchRaw
 chartLowerFormationTouch = chartLowerTouch or chartLowerTouch[1] or chartLowerTouch[2]
 chartUpperFormationTouch = chartUpperTouch or chartUpperTouch[1] or chartUpperTouch[2]
 htfLowerFormationTouch = htfLowerTouch or htfLowerTouch[1] or htfLowerTouch[2]
@@ -721,28 +723,28 @@ if longSignal
     entryV = close, stopV = math.min(longStopLowest, entryV - syminfo.mintick), riskV = math.max(entryV - stopV, syminfo.mintick)
     beV = entryV + riskV, r2V = entryV + riskV * 2.0, r3V = entryV + riskV * 3.0, tpV = endTradeLevel == "1R" ? beV : endTradeLevel == "3R" ? r3V : r2V
     f_addDashTrade(1, entryV, stopV, riskV, beV, tpV)
-    if showEntries
+    if showEntries and showEntryLabels
         array.push(bullEntries, label.new(bar_index, low - entryOffset, "Long", style=label.style_label_up, color=longEntryLabelColor, textcolor=entryLabelTextColor, size=labelSz))
-    if showIfvgEntryZones
+    if showEntries and showIfvgEntryZones
         [entryFvgBox, entryFvgMid] = f_createEntryFvgVisual(latestBearFvgBar - 2, latestBearTop, latestBearBottom, bullFvgColor, fvgTransparency, showMidline, midlineColor, midlineStyleInput)
         array.push(bullEntryFvgBoxes, entryFvgBox), array.push(bullEntryFvgLabels, f_createCoreFvgLabel(bar_index, latestBearTop, latestBearBottom, "IFVG", bullFvgColor))
         if not na(entryFvgMid)
             array.push(bullEntryFvgMidlines, entryFvgMid)
-    if showTradeLevels
+    if enableTradeLevels and showTradeLevels
         f_addVisualTrade(1, entryV, stopV, beV, r2V, r3V)
 if shortSignal
     latestBullSignalDone := true, pendingBearRetest := false, bearEntryAlert := true, statTotalSignals += 1, statShortSignals += 1
     entryV = close, stopV = math.max(shortStopHighest, entryV + syminfo.mintick), riskV = math.max(stopV - entryV, syminfo.mintick)
     beV = entryV - riskV, r2V = entryV - riskV * 2.0, r3V = entryV - riskV * 3.0, tpV = endTradeLevel == "1R" ? beV : endTradeLevel == "3R" ? r3V : r2V
     f_addDashTrade(-1, entryV, stopV, riskV, beV, tpV)
-    if showEntries
+    if showEntries and showEntryLabels
         array.push(bearEntries, label.new(bar_index, high + entryOffset, "Short", style=label.style_label_down, color=shortEntryLabelColor, textcolor=entryLabelTextColor, size=labelSz))
-    if showIfvgEntryZones
+    if showEntries and showIfvgEntryZones
         [entryFvgBox, entryFvgMid] = f_createEntryFvgVisual(latestBullFvgBar - 2, latestBullTop, latestBullBottom, bearFvgColor, fvgTransparency, showMidline, midlineColor, midlineStyleInput)
         array.push(bearEntryFvgBoxes, entryFvgBox), array.push(bearEntryFvgLabels, f_createCoreFvgLabel(bar_index, latestBullTop, latestBullBottom, "IFVG", bearFvgColor))
         if not na(entryFvgMid)
             array.push(bearEntryFvgMidlines, entryFvgMid)
-    if showTradeLevels
+    if enableTradeLevels and showTradeLevels
         f_addVisualTrade(-1, entryV, stopV, beV, r2V, r3V)
 
 f_cleanupLabels(bullEntries, entryDisplayCap), f_cleanupLabels(bearEntries, entryDisplayCap)
@@ -842,10 +844,10 @@ if array.size(dashTradeDirs) > 0
 //━━━━━━━━━━━━━━━━━━━━
 // Dashboards / Candle Color
 //━━━━━━━━━━━━━━━━━━━━
-selectedBasis = bandTouchSource == "Chart Bands" ? bbBasis : htfBasis
-selectedUpper = bandTouchSource == "Chart Bands" ? bbUpper : htfUpper
-selectedLower = bandTouchSource == "Chart Bands" ? bbLower : htfLower
-selectedBandwidth = bandTouchSource == "Chart Bands" ? bbBandwidth : htfBandwidth
+selectedBasis = bandTouchSource == "Bands 1" ? bbBasis : htfBasis
+selectedUpper = bandTouchSource == "Bands 1" ? bbUpper : htfUpper
+selectedLower = bandTouchSource == "Bands 1" ? bbLower : htfLower
+selectedBandwidth = bandTouchSource == "Bands 1" ? bbBandwidth : htfBandwidth
 selectedBandwidthAvg = ta.sma(selectedBandwidth, 20)
 bbState = close > selectedUpper ? "Upper Extreme" : close < selectedLower ? "Lower Extreme" : selectedBandwidth < nz(selectedBandwidthAvg) * 0.75 ? "Squeeze" : selectedBandwidth > nz(selectedBandwidthAvg) * 1.25 ? "Expansion" : close >= selectedBasis ? "Above Mid" : close < selectedBasis ? "Below Mid" : "Inside Bands"
 lastTouchTxt = na(lastLowerBandTouchBar) and na(lastUpperBandTouchBar) ? "None" : nz(lastLowerBandTouchBar, -1) >= nz(lastUpperBandTouchBar, -1) ? "Lower / " + lastLowerBandTouchSourceText : "Upper / " + lastUpperBandTouchSourceText
